@@ -1,0 +1,21 @@
+# 敏感信息绝不入库
+.env
+.env.*
+*.key
+*.pem
+secrets/
+private/
+credentials*
+*password*
+*token*
+
+# 真实店铺导出的原始数据（如需分析，先脱敏后再放进仓库）
+data/raw/
+*.csv.real
+
+# 系统/编辑器杂物
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
