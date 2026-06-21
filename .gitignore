@@ -19,3 +19,10 @@ Thumbs.db
 .vscode/
 .idea/
 node_modules/
+
+# inbox 原始素材（任何类型、任何层级）都不入库：
+# 工作流是「原始素材留本地 → Claude 消化进 reference/ 文本 → 只提交文本」。
+# 仅保留 inbox 里的 .md 笔记与 README（方便两人协作消化）。
+inbox/**
+!inbox/**/
+!inbox/**/*.md
