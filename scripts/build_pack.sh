@@ -7,6 +7,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/通用知识包.md"
 
+# 目录校验（缺失时给可读提示，而非 find 原始报错）
+for d in reference sop; do
+  [ -d "$ROOT/$d" ] || { echo "缺少目录 $d/，请在仓库根目录运行本脚本" >&2; exit 1; }
+done
+
 # 收集 reference/ 与 sop/ 下的知识文件：排除 README.md 与以 _ 开头的辅助文件（如 _消化日志.md）
 FILES=$(find "$ROOT/reference" "$ROOT/sop" -type f -name '*.md' ! -name 'README.md' ! -name '_*' | sort)
 
@@ -27,6 +32,7 @@ FILES=$(find "$ROOT/reference" "$ROOT/sop" -type f -name '*.md' ! -name 'README.
   echo
   while IFS= read -r f; do
     [ -z "$f" ] && continue
+    [ -f "$f" ] || { echo "跳过非常规文件: $f" >&2; continue; }
     echo "# 【${f#"$ROOT"/}】"
     echo
     cat "$f"
@@ -35,7 +41,8 @@ FILES=$(find "$ROOT/reference" "$ROOT/sop" -type f -name '*.md' ! -name 'README.
     echo "---"
     echo
   done <<< "$FILES"
-} > "$OUT"
+} > "$OUT.tmp"
+mv "$OUT.tmp" "$OUT"   # 先写临时文件再原子替换：中途失败不会把 通用知识包.md 留成半截
 
 COUNT=$(printf '%s\n' "$FILES" | grep -c . || true)
 echo "已生成 $OUT （纳入 $COUNT 个知识文件）"
