@@ -1,13 +1,15 @@
-# 敏感信息绝不入库
+# 敏感信息绝不入库（本仓库 PUBLIC 公开，尤其严格）
 .env
 .env.*
+*.env
 *.key
 *.pem
 secrets/
 private/
-credentials*
+*credential*
 *password*
 *token*
+*secret*
 
 # 真实店铺导出的原始数据（如需分析，先脱敏后再放进仓库）
 data/raw/
@@ -26,3 +28,9 @@ node_modules/
 inbox/**
 !inbox/**/
 !inbox/**/*.md
+# 兜底：即便在 inbox，名字含敏感词的 .md 也不入库（覆盖上一行的 .md 放行；公开仓库尤其重要）
+inbox/**/*credential*
+inbox/**/*password*
+inbox/**/*token*
+inbox/**/*secret*
+inbox/**/*.env.*
