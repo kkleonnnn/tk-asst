@@ -81,7 +81,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let STEPS = [], VALUES = {}, active = null, uploadedFile = null, carry = {};
+let STEPS = [], VALUES = {}, active = null, uploadedFile = null, carry = {}, lastResult = {}, lastInput = {};
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 const statusClass = {}; // step_id -> ok/blocked/error
@@ -169,11 +169,13 @@ function select(sid){
     frow.appendChild(fi); frow.appendChild(lbl); ci.appendChild(frow);
   }
   const ta=el("textarea"); ta.id=`inputs-${sid}`; ta.placeholder=s.inputs_help||"（本步无需输入，直接运行）";
+  if(lastInput[sid]!=null) ta.value=lastInput[sid];
   ci.appendChild(ta);
   const row=el("div","row"); const run=el("button","run","▶ 运行此步"); run.onclick=()=>runStep(sid);
   row.appendChild(run); ci.appendChild(row); m.appendChild(ci);
 
   const res=el("div","card result"); res.id="resultCard"; res.style.display="none"; m.appendChild(res);
+  if(lastResult[sid]) renderResult(lastResult[sid]);   // 切回该步时还原上次结果（含①勾选状态）
 }
 
 function parseInputs(sid, text){
@@ -202,6 +204,9 @@ async function runStep(sid){
   const params=collectParams(sid);
   const r=await fetch(`/api/run/${sid}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs,params})}).then(r=>r.json());
   statusClass[sid]=r.status; renderNav();
+  if(sid!=="select" && r.outputs) Object.assign(carry, r.outputs);   // 下游联动上下文（①的选中由勾选框管，不在此并入）
+  const tin=$(`#inputs-${sid}`); if(tin) lastInput[sid]=tin.value;    // 记住输入
+  lastResult[sid]=r;                                                 // 记住结果：切走再切回能还原
   renderResult(r);
 }
 
@@ -210,7 +215,6 @@ function renderResult(r){
   c.appendChild(el("div",null,`<span class="badge ${r.status}">${({ok:'✅ 成功',blocked:'⏸ 暂停/需授权',error:'⛔ 报错'})[r.status]||r.status}</span>`));
   if(r.message) c.appendChild(el("div","summary",r.message));
   const d=r.data||{};
-  if(r.outputs) Object.assign(carry, r.outputs);   // 联动：把本步输出并入上下文，供下游步骤用
   if(d.summary) c.appendChild(el("div",null,"<b>"+d.summary+"</b>"));
   if(d.fields){ const kv=el("div","kv"); Object.entries(d.fields).forEach(([k,v])=>{kv.appendChild(el("div","k",k));kv.appendChild(el("div",null,String(v)));}); c.appendChild(kv); }
   if(d.checks){ const ul=el("ul","checks"); d.checks.forEach(ck=>{const li=el("li",ck.ok?"c-ok":"c-bad",ck.label+(ck.note?` <span class="note">— ${ck.note}</span>`:"")); ul.appendChild(li);}); c.appendChild(ul); }
@@ -228,18 +232,23 @@ function renderTable(rows){
 function renderSelectableTable(rows){
   const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
   const wrap=el("div");
-  const cap=el("div"); cap.id="selcount"; cap.style.cssText="color:var(--mut);font-size:12px;margin:6px 0";
-  wrap.appendChild(cap);
+  const bar=el("div","row"); bar.style.margin="4px 0 8px";
+  const bAll=el("button",null,"✔ 全选"), bNone=el("button",null,"✕ 全不选");
+  const cap=el("span"); cap.id="selcount"; cap.style.cssText="color:var(--mut);font-size:12px;margin-left:6px";
+  bar.appendChild(bAll); bar.appendChild(bNone); bar.appendChild(cap); wrap.appendChild(bar);
   const t=el("table"); const thead=el("tr"); thead.appendChild(el("th",null,"选")); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
+  const sel0=new Set((carry.selected||[]).map(x=>x["商品名"]));   // 默认按已选还原；首次为空=都不勾
   const boxes=[];
   rows.forEach(r=>{
     const tr=el("tr"); const td0=el("td");
-    const cb=el("input"); cb.type="checkbox"; cb.checked=String(r["判定"]||"").indexOf("✅")>=0; cb._row=r; cb.onchange=upd;
+    const cb=el("input"); cb.type="checkbox"; cb.checked=sel0.has(r["商品名"]); cb._row=r; cb.onchange=upd;
     td0.appendChild(cb); tr.appendChild(td0);
     keys.forEach(k=>tr.appendChild(el("td",null,cellHtml(r[k])))); t.appendChild(tr); boxes.push(cb);
   });
   wrap.appendChild(t);
-  function upd(){ carry.selected=boxes.filter(b=>b.checked).map(b=>({"商品名":b._row["商品名"],"类目":b._row["类目"],"售价RM":b._row["售价RM"]})); cap.textContent="✅ 已勾选 "+carry.selected.length+" 个 → 进入 ② 找货源会自动带过去"; }
+  bAll.onclick=()=>{ boxes.forEach(b=>b.checked=true); upd(); };
+  bNone.onclick=()=>{ boxes.forEach(b=>b.checked=false); upd(); };
+  function upd(){ carry.selected=boxes.filter(b=>b.checked).map(b=>({"商品名":b._row["商品名"],"类目":b._row["类目"],"售价RM":b._row["售价RM"]})); cap.textContent="已勾选 "+carry.selected.length+" 个 → 进 ② 自动带过去"; }
   upd();
   return wrap;
 }
