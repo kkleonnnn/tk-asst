@@ -156,23 +156,32 @@ function select(sid){
     c.appendChild(row); m.appendChild(c);
   }
 
-  const ci=el("div","card"); ci.appendChild(el("h3",null,"输入"));
-  if(sid!=="select" && carry.selected && carry.selected.length){
-    const hint=el("div",null,"🔗 已联动 ① 勾选的 "+carry.selected.length+" 个品（点“运行此步”即用；也可在下方粘贴 JSON 覆盖）");
-    hint.style.cssText="color:var(--accent);font-size:12.5px;margin-bottom:8px"; ci.appendChild(hint);
-  }
-  if(sid==="select"){
+  const ci=el("div","card");
+  if(sid==="select"){                       // ① 文件上传（主输入，可见）
+    ci.appendChild(el("h3",null,"上传出海匠导出"));
     const frow=el("div","row");
     const fi=el("input"); fi.type="file"; fi.id="fileup"; fi.setAttribute("accept",".xlsx,.csv"); fi.style.flex="1";
     fi.onchange=()=>handleFile(fi);
-    const lbl=el("span","hint"); lbl.id="filelbl"; lbl.textContent="⬆ 上传出海匠导出的 xlsx / csv（或在下方粘贴）";
+    const lbl=el("span","hint"); lbl.id="filelbl"; lbl.textContent="⬆ 选出海匠导出的 xlsx / csv";
     frow.appendChild(fi); frow.appendChild(lbl); ci.appendChild(frow);
+  } else if(s.available){                    // ②④⑤ 走联动，不需要可见输入框
+    const n=(carry.selected||[]).length;
+    const hint=el("div",null, n? ("🔗 已联动 ① 勾选的 "+n+" 个品，直接点运行") : "🔗 先到 ① 勾选想做的品，这一步会自动带过来");
+    hint.style.cssText="color:"+(n?"var(--accent)":"var(--mut)")+";font-size:13px;margin-bottom:10px"; ci.appendChild(hint);
   }
-  const ta=el("textarea"); ta.id=`inputs-${sid}`; ta.placeholder=s.inputs_help||"（本步无需输入，直接运行）";
-  if(lastInput[sid]!=null) ta.value=lastInput[sid];
-  ci.appendChild(ta);
   const row=el("div","row"); const run=el("button","run","▶ 运行此步"); run.onclick=()=>runStep(sid);
-  row.appendChild(run); ci.appendChild(row); m.appendChild(ci);
+  row.appendChild(run); ci.appendChild(row);
+  if(s.available){                           // 高级输入：默认隐藏，点「高级」才展开；gated 步骤不给
+    const toggle=el("div",null, sid==="select"?"⚙ 高级：或粘贴 CSV/JSON":"⚙ 高级：粘贴 JSON 覆盖（可选）");
+    toggle.style.cssText="color:var(--mut);font-size:12px;cursor:pointer;user-select:none;margin-top:8px";
+    const ta=el("textarea"); ta.id=`inputs-${sid}`; ta.placeholder=s.inputs_help||"";
+    ta.style.cssText="margin-top:8px;display:none";
+    if(lastInput[sid]!=null) ta.value=lastInput[sid];
+    if(lastInput[sid]) ta.style.display="block";
+    toggle.onclick=()=>{ ta.style.display = (ta.style.display==="none"?"block":"none"); };
+    ci.appendChild(toggle); ci.appendChild(ta);
+  }
+  m.appendChild(ci);
 
   const res=el("div","card result"); res.id="resultCard"; res.style.display="none"; m.appendChild(res);
   if(lastResult[sid]) renderResult(lastResult[sid]);   // 切回该步时还原上次结果（含①勾选状态）
@@ -187,7 +196,7 @@ function parseInputs(sid, text){
 function abToB64(buf){ let s=''; const b=new Uint8Array(buf), C=0x8000; for(let i=0;i<b.length;i+=C) s+=String.fromCharCode.apply(null,b.subarray(i,i+C)); return btoa(s); }
 function handleFile(fi){
   const f=fi.files&&fi.files[0]; if(!f) return; const lbl=$("#filelbl"); const r=new FileReader();
-  if(/\.csv$/i.test(f.name)){ r.onload=e=>{ const t=$("#inputs-select"); if(t)t.value=e.target.result; uploadedFile=null; if(lbl)lbl.textContent="已载入 CSV 到下方文本框，点运行"; }; r.readAsText(f); }
+  if(/\.csv$/i.test(f.name)){ r.onload=e=>{ const t=$("#inputs-select"); if(t){t.value=e.target.result; t.style.display="block";} uploadedFile=null; if(lbl)lbl.textContent="已载入 CSV（点运行此步）"; }; r.readAsText(f); }
   else { r.onload=e=>{ uploadedFile={file_b64:abToB64(e.target.result), file_name:f.name}; if(lbl)lbl.textContent="已选择："+f.name+"（点“运行此步”解析打分）"; }; r.readAsArrayBuffer(f); }
 }
 function selectInputs(){ return uploadedFile ? uploadedFile : parseInputs("select", ($("#inputs-select")||{}).value||""); }
