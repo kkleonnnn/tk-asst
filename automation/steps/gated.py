@@ -35,19 +35,6 @@ class _Gated(Step):
         return {"summary": "需授权/接口，暂由人工完成"}
 
 
-class SourceStep(_Gated):
-    id = "source"
-    name = "② 找货源(1688)"
-    stage = "找货源"
-    provider = "ali_1688"
-    desc = ("给潜力款在 1688 找可一件代发的源头，确认进货价/重量/发货时效。"
-            "自动『图搜同款+拉商详』需 1688 开放平台 API。")
-    requires = ["1688 开放平台：企业资质认证 + 创建应用 + App Key（图搜同款/商品详情/一件代发接口）"]
-    how_to_unblock = ("去 open.1688.com 完成企业资质认证并创建应用拿 App Key，"
-                      "接入『图搜同款/商品详情』接口后本步可自动找源；"
-                      "当前请人工在 1688 找源，把货源链接/进货价/重量回填到下一步。")
-
-
 class CollectStep(_Gated):
     id = "collect"
     name = "③ 采集"

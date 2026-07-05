@@ -4,9 +4,10 @@ import os
 
 from engine import Pipeline
 from steps.scoring import SelectScoreStep
+from steps.source import SourceStep
 from steps.pricing import PricingStep
 from steps.listing import ListingPrepStep
-from steps.gated import SourceStep, CollectStep, FulfillStep
+from steps.gated import CollectStep, FulfillStep
 
 # 流水线顺序：选品 → 找货源 → 采集 → 定价 → 上架 → 发货
 PIPELINE = Pipeline([

@@ -81,7 +81,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let STEPS = [], VALUES = {}, active = null, uploadedFile = null;
+let STEPS = [], VALUES = {}, active = null, uploadedFile = null, carry = {};
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 const statusClass = {}; // step_id -> ok/blocked/error
@@ -157,6 +157,10 @@ function select(sid){
   }
 
   const ci=el("div","card"); ci.appendChild(el("h3",null,"输入"));
+  if(sid!=="select" && carry.selected && carry.selected.length){
+    const hint=el("div",null,"🔗 已联动 ① 勾选的 "+carry.selected.length+" 个品（点“运行此步”即用；也可在下方粘贴 JSON 覆盖）");
+    hint.style.cssText="color:var(--accent);font-size:12.5px;margin-bottom:8px"; ci.appendChild(hint);
+  }
   if(sid==="select"){
     const frow=el("div","row");
     const fi=el("input"); fi.type="file"; fi.id="fileup"; fi.setAttribute("accept",".xlsx,.csv"); fi.style.flex="1";
@@ -193,7 +197,8 @@ async function saveParams(sid){
 }
 
 async function runStep(sid){
-  const inputs = sid==="select" ? selectInputs() : parseInputs(sid,$(`#inputs-${sid}`).value);
+  const inputs = sid==="select" ? selectInputs()
+    : Object.assign({}, carry, parseInputs(sid, ($(`#inputs-${sid}`)||{}).value||""));
   const params=collectParams(sid);
   const r=await fetch(`/api/run/${sid}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs,params})}).then(r=>r.json());
   statusClass[sid]=r.status; renderNav();
@@ -205,18 +210,38 @@ function renderResult(r){
   c.appendChild(el("div",null,`<span class="badge ${r.status}">${({ok:'✅ 成功',blocked:'⏸ 暂停/需授权',error:'⛔ 报错'})[r.status]||r.status}</span>`));
   if(r.message) c.appendChild(el("div","summary",r.message));
   const d=r.data||{};
+  if(r.outputs) Object.assign(carry, r.outputs);   // 联动：把本步输出并入上下文，供下游步骤用
   if(d.summary) c.appendChild(el("div",null,"<b>"+d.summary+"</b>"));
   if(d.fields){ const kv=el("div","kv"); Object.entries(d.fields).forEach(([k,v])=>{kv.appendChild(el("div","k",k));kv.appendChild(el("div",null,String(v)));}); c.appendChild(kv); }
   if(d.checks){ const ul=el("ul","checks"); d.checks.forEach(ck=>{const li=el("li",ck.ok?"c-ok":"c-bad",ck.label+(ck.note?` <span class="note">— ${ck.note}</span>`:"")); ul.appendChild(li);}); c.appendChild(ul); }
-  if(d.table&&d.table.length){ c.appendChild(renderTable(d.table)); }
+  if(d.table&&d.table.length){ c.appendChild(active==="select" ? renderSelectableTable(d.table) : renderTable(d.table)); }
   if(d.notes){ const ul=el("ul","notes"); d.notes.forEach(n=>ul.appendChild(el("li",null,n))); c.appendChild(ul); }
 }
 
+function cellHtml(v){ const s=String(v==null?"":v); return /^https?:\/\//.test(s) ? `<a href="${s}" target="_blank" style="color:#4ea1ff">🔍 打开</a>` : s; }
 function renderTable(rows){
   const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
   const t=el("table"); const thead=el("tr"); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
-  rows.forEach(r=>{const tr=el("tr"); keys.forEach(k=>tr.appendChild(el("td",null,String(r[k]??"")))); t.appendChild(tr);});
+  rows.forEach(r=>{const tr=el("tr"); keys.forEach(k=>tr.appendChild(el("td",null,cellHtml(r[k])))); t.appendChild(tr);});
   return t;
+}
+function renderSelectableTable(rows){
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
+  const wrap=el("div");
+  const cap=el("div"); cap.id="selcount"; cap.style.cssText="color:var(--mut);font-size:12px;margin:6px 0";
+  wrap.appendChild(cap);
+  const t=el("table"); const thead=el("tr"); thead.appendChild(el("th",null,"选")); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
+  const boxes=[];
+  rows.forEach(r=>{
+    const tr=el("tr"); const td0=el("td");
+    const cb=el("input"); cb.type="checkbox"; cb.checked=String(r["判定"]||"").indexOf("✅")>=0; cb._row=r; cb.onchange=upd;
+    td0.appendChild(cb); tr.appendChild(td0);
+    keys.forEach(k=>tr.appendChild(el("td",null,cellHtml(r[k])))); t.appendChild(tr); boxes.push(cb);
+  });
+  wrap.appendChild(t);
+  function upd(){ carry.selected=boxes.filter(b=>b.checked).map(b=>({"商品名":b._row["商品名"],"类目":b._row["类目"],"售价RM":b._row["售价RM"]})); cap.textContent="✅ 已勾选 "+carry.selected.length+" 个 → 进入 ② 找货源会自动带过去"; }
+  upd();
+  return wrap;
 }
 
 async function runAll(){
