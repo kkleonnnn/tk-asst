@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TikTok Shop 运营控制台</title>
+<style>
+  :root{--bg:#0f1720;--panel:#182430;--line:#2a3a49;--fg:#e7eef5;--mut:#8fa3b5;
+        --accent:#25d366;--warn:#f0a000;--bad:#ff5c5c;--ok:#25d366;--chip:#20303d;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;
+         align-items:center;gap:16px;flex-wrap:wrap;background:var(--panel)}
+  header h1{font-size:16px;margin:0}
+  header .sub{color:var(--mut);font-size:12px}
+  header .grow{flex:1}
+  button{background:var(--chip);color:var(--fg);border:1px solid var(--line);
+          border-radius:7px;padding:7px 13px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#062;border-color:var(--accent);font-weight:600}
+  button.run{background:#1c86ee;color:#fff;border-color:#1c86ee}
+  .wrap{display:flex;gap:0;min-height:calc(100vh - 52px)}
+  nav{width:210px;border-right:1px solid var(--line);padding:10px;background:var(--panel)}
+  nav .step{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;
+            cursor:pointer;margin-bottom:4px;border:1px solid transparent}
+  nav .step:hover{background:var(--chip)}
+  nav .step.active{background:var(--chip);border-color:var(--accent)}
+  nav .step .dot{width:9px;height:9px;border-radius:50%;background:#425466;flex:none}
+  nav .step.ok .dot{background:var(--ok)} nav .step.blocked .dot{background:var(--warn)}
+  nav .step.error .dot{background:var(--bad)}
+  nav .step .nm{font-size:13px} nav .step .stg{color:var(--mut);font-size:11px}
+  nav .step.gated .nm{color:var(--mut)}
+  main{flex:1;padding:20px;max-width:900px}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;
+         background:var(--chip);color:var(--mut)}
+  .badge.blocked{background:#3a2e12;color:var(--warn)} .badge.ok{background:#12331f;color:var(--ok)}
+  .badge.error{background:#3a1616;color:var(--bad)}
+  h2{font-size:18px;margin:6px 0 2px}
+  .desc{color:var(--mut);margin:8px 0 14px}
+  .req{background:#20242c;border:1px solid var(--line);border-left:3px solid var(--warn);
+       padding:8px 12px;border-radius:6px;margin:10px 0;font-size:12.5px;color:#d9c48c}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+  .card h3{margin:0 0 10px;font-size:13px;color:var(--mut);text-transform:none}
+  .params{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  .p label{display:block;font-size:12px;margin-bottom:3px}
+  .p .hint{color:var(--mut);font-size:11px;margin-top:2px}
+  input,textarea,select{width:100%;background:#0d141c;color:var(--fg);border:1px solid var(--line);
+        border-radius:6px;padding:7px 9px;font-size:13px;font-family:inherit}
+  textarea{min-height:120px;resize:vertical}
+  .row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .result{margin-top:6px}
+  .summary{font-size:15px;font-weight:600;margin:6px 0}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;overflow-x:auto;display:block}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+  th{background:var(--chip);color:var(--mut)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px}
+  .kv .k{color:var(--mut)}
+  .checks li{list-style:none;margin:4px 0} .checks{padding-left:0;margin:8px 0}
+  .checks .c-ok::before{content:"✓ ";color:var(--ok)} .checks .c-bad::before{content:"✗ ";color:var(--bad)}
+  .checks .note{color:var(--mut);font-size:12px}
+  .notes{color:var(--mut);font-size:12px;margin-top:10px;padding-left:16px}
+  .pipe{margin-top:10px}
+  .pipe .pstep{display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--chip);border:1px solid var(--accent);
+         padding:10px 16px;border-radius:8px;opacity:0;transition:.3s}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>🛒 TikTok Shop 运营控制台 <span class="badge">v1 框架</span></h1>
+  <span class="sub">马来跨境店 · 选品→找货源→采集→定价→上架→发货 · 半自动、可暂停</span>
+  <span class="grow"></span>
+  <button class="primary" id="runAll">▶ 跑通整条</button>
+</header>
+<div class="wrap">
+  <nav id="nav"></nav>
+  <main id="main"></main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let STEPS = [], VALUES = {}, active = null;
+const $ = s => document.querySelector(s);
+const el = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
+const statusClass = {}; // step_id -> ok/blocked/error
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
+
+async function load(){
+  const r = await fetch("/api/steps").then(r=>r.json());
+  STEPS = r.steps; VALUES = r.values;
+  renderNav(); select(STEPS[0].id);
+}
+
+function renderNav(){
+  const nav = $("#nav"); nav.innerHTML="";
+  STEPS.forEach(s=>{
+    const cls = ["step", statusClass[s.id]||"", s.available?"":"gated", active===s.id?"active":""].join(" ");
+    const d = el("div", cls);
+    d.innerHTML = `<span class="dot"></span><span><div class="nm">${s.name}</div><div class="stg">${s.stage}${s.available?"":" · 需授权"}</div></span>`;
+    d.onclick=()=>select(s.id);
+    nav.appendChild(d);
+  });
+}
+
+function paramInput(sid, p){
+  const val = (VALUES[sid]||{})[p.key];
+  const box = el("div","p");
+  box.appendChild(el("label",null,p.label));
+  let ctrl;
+  if(p.type==="select"){
+    ctrl=el("select"); (p.options||[]).forEach(o=>{const op=el("option",null,o);op.value=o;if(String(val)===String(o))op.selected=true;ctrl.appendChild(op);});
+  } else if(p.type==="textarea"){
+    ctrl=el("textarea"); ctrl.value=val==null?"":val; ctrl.style.minHeight="60px";
+  } else {
+    ctrl=el("input"); ctrl.type=p.type==="number"?"number":"text"; ctrl.step="any"; ctrl.value=val==null?"":val;
+  }
+  ctrl.id=`param-${sid}-${p.key}`;
+  box.appendChild(ctrl);
+  if(p.help) box.appendChild(el("div","hint",p.help));
+  return box;
+}
+
+function collectParams(sid){
+  const out={};
+  (STEPS.find(s=>s.id===sid).params||[]).forEach(p=>{
+    const e=$(`#param-${sid}-${p.key}`); if(!e)return;
+    let v=e.value;
+    if(p.type==="number") v = v===""?null:Number(v);
+    out[p.key]=v;
+  });
+  return out;
+}
+
+function select(sid){
+  active=sid; renderNav();
+  const s=STEPS.find(x=>x.id===sid);
+  const m=$("#main"); m.innerHTML="";
+  m.appendChild(el("div",null,`<span class="badge ${s.available?'':'blocked'}">${s.stage}</span>`));
+  m.appendChild(el("h2",null,s.name));
+  m.appendChild(el("div","desc",s.desc));
+  if(s.requires&&s.requires.length) m.appendChild(el("div","req","🔑 前置：<br>"+s.requires.join("<br>")));
+
+  if(s.params&&s.params.length){
+    const c=el("div","card"); c.appendChild(el("h3",null,"参数（硬指标 / 费率，可调）"));
+    const g=el("div","params"); s.params.forEach(p=>g.appendChild(paramInput(sid,p))); c.appendChild(g);
+    const row=el("div","row"); const save=el("button",null,"💾 保存参数"); save.onclick=()=>saveParams(sid); row.appendChild(save);
+    c.appendChild(row); m.appendChild(c);
+  }
+
+  const ci=el("div","card"); ci.appendChild(el("h3",null,"输入"));
+  const ta=el("textarea"); ta.id=`inputs-${sid}`; ta.placeholder=s.inputs_help||"（本步无需输入，直接运行）";
+  ci.appendChild(ta);
+  const row=el("div","row"); const run=el("button","run","▶ 运行此步"); run.onclick=()=>runStep(sid);
+  row.appendChild(run); ci.appendChild(row); m.appendChild(ci);
+
+  const res=el("div","card result"); res.id="resultCard"; res.style.display="none"; m.appendChild(res);
+}
+
+function parseInputs(sid, text){
+  text=(text||"").trim();
+  if(!text) return {};
+  if(text[0]==="{"||text[0]==="["){ try{ const j=JSON.parse(text); return Array.isArray(j)?{candidates:j}:j; }catch(e){} }
+  return sid==="select" ? {candidates_csv:text} : {text:text};
+}
+
+async function saveParams(sid){
+  const body={steps:{[sid]:collectParams(sid)}};
+  const r=await fetch("/api/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.json());
+  VALUES=r.values; toast("参数已保存到 config.json");
+}
+
+async function runStep(sid){
+  const inputs=parseInputs(sid,$(`#inputs-${sid}`).value);
+  const params=collectParams(sid);
+  const r=await fetch(`/api/run/${sid}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs,params})}).then(r=>r.json());
+  statusClass[sid]=r.status; renderNav();
+  renderResult(r);
+}
+
+function renderResult(r){
+  const c=$("#resultCard"); c.style.display=""; c.innerHTML="";
+  c.appendChild(el("div",null,`<span class="badge ${r.status}">${({ok:'✅ 成功',blocked:'⏸ 暂停/需授权',error:'⛔ 报错'})[r.status]||r.status}</span>`));
+  if(r.message) c.appendChild(el("div","summary",r.message));
+  const d=r.data||{};
+  if(d.summary) c.appendChild(el("div",null,"<b>"+d.summary+"</b>"));
+  if(d.fields){ const kv=el("div","kv"); Object.entries(d.fields).forEach(([k,v])=>{kv.appendChild(el("div","k",k));kv.appendChild(el("div",null,String(v)));}); c.appendChild(kv); }
+  if(d.checks){ const ul=el("ul","checks"); d.checks.forEach(ck=>{const li=el("li",ck.ok?"c-ok":"c-bad",ck.label+(ck.note?` <span class="note">— ${ck.note}</span>`:"")); ul.appendChild(li);}); c.appendChild(ul); }
+  if(d.table&&d.table.length){ c.appendChild(renderTable(d.table)); }
+  if(d.notes){ const ul=el("ul","notes"); d.notes.forEach(n=>ul.appendChild(el("li",null,n))); c.appendChild(ul); }
+}
+
+function renderTable(rows){
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
+  const t=el("table"); const thead=el("tr"); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
+  rows.forEach(r=>{const tr=el("tr"); keys.forEach(k=>tr.appendChild(el("td",null,String(r[k]??"")))); t.appendChild(tr);});
+  return t;
+}
+
+async function runAll(){
+  const inputs=parseInputs("select",($("#inputs-select")||{}).value||"");
+  const r=await fetch("/api/pipeline",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs})}).then(r=>r.json());
+  (r.results||[]).forEach(x=>statusClass[x.step_id]=x.status); renderNav();
+  const m=$("#main"); m.innerHTML=""; m.appendChild(el("h2",null,"整条流水线结果"));
+  m.appendChild(el("div","desc","按顺序执行，遇到需授权/报错的步骤自动暂停（正常，人工处理后从下一步继续）。"));
+  const c=el("div","card pipe");
+  (r.results||[]).forEach(x=>{
+    const line=el("div","pstep");
+    line.innerHTML=`<span class="badge ${x.status}">${({ok:'✅',blocked:'⏸',error:'⛔'})[x.status]||''}</span> <b>${x.name}</b> <span class="stg">${x.stage}</span> — ${x.message||''}`;
+    c.appendChild(line);
+  });
+  const last=(r.results||[])[r.results.length-1];
+  if(last&&last.status!=="ok") c.appendChild(el("div","notes",`⏸ 停在「${last.name}」。这一步${last.status==="blocked"?"需授权/人工":"报错"}，处理后点对应步骤单独续跑。`));
+  m.appendChild(c);
+}
+
+$("#runAll").onclick=runAll;
+load();
+</script>
+</body>
+</html>

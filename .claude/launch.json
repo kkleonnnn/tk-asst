@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "运营控制台",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["automation/run.py"],
+      "port": 8765
+    }
+  ]
+}
