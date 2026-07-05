@@ -16,10 +16,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from steps import PIPELINE, load_config, save_config  # noqa: E402
+from engine.creds import public_view, merge_save, load_credentials  # noqa: E402
 
 HOST = "127.0.0.1"
 PORT = 8765
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _cfg_with_creds():
+    """跑步骤时把凭证注入 config，供（未来）真实接口实现读取。"""
+    cfg = load_config()
+    cfg["_credentials"] = load_credentials()
+    return cfg
 
 
 def _effective_values(cfg):
@@ -74,6 +82,8 @@ class Handler(BaseHTTPRequestHandler):
                                     "values": _effective_values(cfg)})
         if self.path == "/api/config":
             return self._send(200, load_config())
+        if self.path == "/api/credentials":
+            return self._send(200, public_view())
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
@@ -87,16 +97,17 @@ class Handler(BaseHTTPRequestHandler):
                     cfg["steps"].setdefault(sid, {}).update(vals)
             save_config(cfg)
             return self._send(200, {"ok": True, "values": _effective_values(cfg)})
+        if self.path == "/api/credentials":
+            merge_save(body.get("credentials", body) or {})
+            return self._send(200, {"ok": True, **public_view()})
         if self.path.startswith("/api/run/"):
             step_id = self.path[len("/api/run/"):]
-            cfg = load_config()
             r = PIPELINE.run_step(step_id, body.get("inputs", {}),
-                                  body.get("params", {}), cfg)
+                                  body.get("params", {}), _cfg_with_creds())
             return self._send(200, r.to_dict())
         if self.path == "/api/pipeline":
-            cfg = load_config()
             res = PIPELINE.run_all(body.get("inputs", {}),
-                                   body.get("params_by_step", {}), cfg)
+                                   body.get("params_by_step", {}), _cfg_with_creds())
             return self._send(200, {"results": res})
         return self._send(404, {"error": "not found"})
 

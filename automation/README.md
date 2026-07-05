@@ -37,20 +37,33 @@ python3 run.py
 
 > ⚠️ **上架/找货源的授权（TikTok Shop Partner 审核、店铺 OAuth、1688 App Key）是资质活，需 kk 去申请**，代码框架已留好接口位。
 
+## 🔑 接口配置（填 API 凭证的地方）
+左侧「🔑 接口配置」页填三组凭证：**TikTok Shop Open API / 1688 开放平台 / 货代系统（达意 dyhd.huoyuanjiawms.com）**。
+- 真凭证写入 **`credentials.json`（已 gitignore，绝不入库）**；本仓库 PUBLIC，**严禁把密钥提交上来**。
+- 🔒 密钥类字段（app_secret/token）**不回显**，留空=不修改（防截图/共享泄露）。
+- 填好后，对应的需授权步骤（②③⑥）会显示"凭证已就位、待接入实现"；真实 API 调用由后续版本把 `gated.py` 换成实现。
+- 也可复制 `credentials.example.json` 为 `credentials.json` 手填。
+
+## 关于达意货代（本店所选货代）
+控制台已按达意真实数据对齐：**④定价**货代费默认 **2 元/单**（超规+1 元）；**⑥发货**步骤内置达意的**东莞/义乌仓地址、收费、营业时间(10:00–22:00)、赔付、发货流程**。达意档案详见 `../reference/04-履约发货/达意货代云仓-收费服务与发货流程.md`。
+
 ## 目录结构（怎么加/改一步）
 ```
 automation/
 ├── run.py            # 一键启动（校长用这个）
 ├── server.py         # web 服务（stdlib http.server）
 ├── config.json       # 硬指标/费率集中配置（网页可改写）
-├── engine/pipeline.py# 流水线引擎：Step 基类 / StepResult / Pipeline(run_step, run_all)
+├── credentials.example.json  # 接口凭证模板（真凭证存 credentials.json，已 gitignore）
+├── engine/
+│   ├── pipeline.py   # 流水线引擎：Step 基类 / StepResult / Pipeline(run_step, run_all)
+│   └── creds.py      # 接口凭证读写（脱敏回显、secret 留空不改）
 ├── steps/            # 每个环节一个步骤类
 │   ├── scoring.py    # ① 选品打分（真）
-│   ├── pricing.py    # ④ 定价利润（真）
+│   ├── pricing.py    # ④ 定价利润（真，货代费默认对齐达意 2 元/单）
 │   ├── listing.py    # ⑤ 上架预检（真）
-│   ├── gated.py      # ②③⑥ 需授权占位（返回 BLOCKED 暂停）
+│   ├── gated.py      # ②③⑥ 需授权占位（返回 BLOCKED 暂停；⑥发货带达意仓/收费/赔付）
 │   └── __init__.py   # 组装 PIPELINE 顺序 + 读写 config
-├── web/index.html    # 单页控制台（自包含，无 CDN）
+├── web/index.html    # 单页控制台 + 🔑接口配置页（自包含，无 CDN）
 └── samples/candidates.csv  # 选品样例输入
 ```
 **加一步**：在 `steps/` 写个 `Step` 子类（定义 `id/name/stage/desc/requires/params/inputs_help` + `run()` 返回 `StepResult`），在 `steps/__init__.py` 的 `PIPELINE` 里排进顺序即可，网页自动出现。

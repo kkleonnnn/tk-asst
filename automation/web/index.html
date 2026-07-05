@@ -103,6 +103,11 @@ function renderNav(){
     d.onclick=()=>select(s.id);
     nav.appendChild(d);
   });
+  const cd = el("div", ["step", active==="__creds__"?"active":""].join(" "));
+  cd.style.cssText="margin-top:10px;border-top:1px solid var(--line);padding-top:12px";
+  cd.innerHTML = `<span class="dot"></span><span><div class="nm">🔑 接口配置</div><div class="stg">API 凭证 · 授权</div></span>`;
+  cd.onclick=()=>select("__creds__");
+  nav.appendChild(cd);
 }
 
 function paramInput(sid, p){
@@ -136,6 +141,7 @@ function collectParams(sid){
 
 function select(sid){
   active=sid; renderNav();
+  if(sid==="__creds__") return renderCreds();
   const s=STEPS.find(x=>x.id===sid);
   const m=$("#main"); m.innerHTML="";
   m.appendChild(el("div",null,`<span class="badge ${s.available?'':'blocked'}">${s.stage}</span>`));
@@ -214,6 +220,36 @@ async function runAll(){
   const last=(r.results||[])[r.results.length-1];
   if(last&&last.status!=="ok") c.appendChild(el("div","notes",`⏸ 停在「${last.name}」。这一步${last.status==="blocked"?"需授权/人工":"报错"}，处理后点对应步骤单独续跑。`));
   m.appendChild(c);
+}
+
+async function renderCreds(){
+  const m=$("#main"); m.innerHTML="";
+  m.appendChild(el("h2",null,"🔑 接口配置（API 凭证）"));
+  m.appendChild(el("div","desc","填第三方接口的授权凭证，供 ②③⑥ 等需授权步骤将来接入。⚠️ 保存到本地 credentials.json（已 gitignore，绝不入库）；🔒密钥字段不回显，留空=不修改。"));
+  const data = await fetch("/api/credentials").then(r=>r.json());
+  data.schema.forEach(g=>{
+    const c=el("div","card"); c.appendChild(el("h3",null,g.label));
+    if(g.help){ const h=el("div",null,g.help); h.style.cssText="color:var(--mut);font-size:12px;margin:0 0 10px"; c.appendChild(h); }
+    const grid=el("div","params");
+    g.fields.forEach(f=>{
+      const box=el("div","p");
+      box.appendChild(el("label",null,f.label+(f.secret?" 🔒":"")));
+      const inp=el("input"); inp.id=`cred-${g.group}-${f.key}`; inp.type=f.secret?"password":"text";
+      const filled=(data.filled[g.group]||{})[f.key];
+      if(f.secret){ if(filled) inp.placeholder="已保存，留空=不改"; }
+      else { inp.value=(data.values[g.group]||{})[f.key]||""; }
+      box.appendChild(inp); grid.appendChild(box);
+    });
+    c.appendChild(grid); m.appendChild(c);
+  });
+  const row=el("div","row"); const save=el("button","primary","💾 保存凭证"); save.onclick=()=>saveCreds(data.schema); row.appendChild(save);
+  m.appendChild(row);
+}
+async function saveCreds(schema){
+  const creds={};
+  schema.forEach(g=>{ creds[g.group]={}; g.fields.forEach(f=>{ creds[g.group][f.key]=$(`#cred-${g.group}-${f.key}`).value; }); });
+  await fetch("/api/credentials",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credentials:creds})}).then(r=>r.json());
+  toast("凭证已保存到本地 credentials.json"); renderCreds();
 }
 
 $("#runAll").onclick=runAll;

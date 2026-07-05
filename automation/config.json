@@ -11,7 +11,7 @@
     },
     "pricing": {
       "freight_rmb_per_kg": 0,
-      "agent_fee_rmb": 3,
+      "agent_fee_rmb": 2,
       "fx_rmb_per_usd": 7.2,
       "commission_rate": 5,
       "transaction_fee_rate": 2,
