@@ -81,7 +81,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let STEPS = [], VALUES = {}, active = null;
+let STEPS = [], VALUES = {}, active = null, uploadedFile = null;
 const $ = s => document.querySelector(s);
 const el = (t, c, h) => { const e=document.createElement(t); if(c)e.className=c; if(h!=null)e.innerHTML=h; return e; };
 const statusClass = {}; // step_id -> ok/blocked/error
@@ -140,7 +140,7 @@ function collectParams(sid){
 }
 
 function select(sid){
-  active=sid; renderNav();
+  active=sid; uploadedFile=null; renderNav();
   if(sid==="__creds__") return renderCreds();
   const s=STEPS.find(x=>x.id===sid);
   const m=$("#main"); m.innerHTML="";
@@ -157,6 +157,13 @@ function select(sid){
   }
 
   const ci=el("div","card"); ci.appendChild(el("h3",null,"输入"));
+  if(sid==="select"){
+    const frow=el("div","row");
+    const fi=el("input"); fi.type="file"; fi.id="fileup"; fi.setAttribute("accept",".xlsx,.csv"); fi.style.flex="1";
+    fi.onchange=()=>handleFile(fi);
+    const lbl=el("span","hint"); lbl.id="filelbl"; lbl.textContent="⬆ 上传出海匠导出的 xlsx / csv（或在下方粘贴）";
+    frow.appendChild(fi); frow.appendChild(lbl); ci.appendChild(frow);
+  }
   const ta=el("textarea"); ta.id=`inputs-${sid}`; ta.placeholder=s.inputs_help||"（本步无需输入，直接运行）";
   ci.appendChild(ta);
   const row=el("div","row"); const run=el("button","run","▶ 运行此步"); run.onclick=()=>runStep(sid);
@@ -171,6 +178,13 @@ function parseInputs(sid, text){
   if(text[0]==="{"||text[0]==="["){ try{ const j=JSON.parse(text); return Array.isArray(j)?{candidates:j}:j; }catch(e){} }
   return sid==="select" ? {candidates_csv:text} : {text:text};
 }
+function abToB64(buf){ let s=''; const b=new Uint8Array(buf), C=0x8000; for(let i=0;i<b.length;i+=C) s+=String.fromCharCode.apply(null,b.subarray(i,i+C)); return btoa(s); }
+function handleFile(fi){
+  const f=fi.files&&fi.files[0]; if(!f) return; const lbl=$("#filelbl"); const r=new FileReader();
+  if(/\.csv$/i.test(f.name)){ r.onload=e=>{ const t=$("#inputs-select"); if(t)t.value=e.target.result; uploadedFile=null; if(lbl)lbl.textContent="已载入 CSV 到下方文本框，点运行"; }; r.readAsText(f); }
+  else { r.onload=e=>{ uploadedFile={file_b64:abToB64(e.target.result), file_name:f.name}; if(lbl)lbl.textContent="已选择："+f.name+"（点“运行此步”解析打分）"; }; r.readAsArrayBuffer(f); }
+}
+function selectInputs(){ return uploadedFile ? uploadedFile : parseInputs("select", ($("#inputs-select")||{}).value||""); }
 
 async function saveParams(sid){
   const body={steps:{[sid]:collectParams(sid)}};
@@ -179,7 +193,7 @@ async function saveParams(sid){
 }
 
 async function runStep(sid){
-  const inputs=parseInputs(sid,$(`#inputs-${sid}`).value);
+  const inputs = sid==="select" ? selectInputs() : parseInputs(sid,$(`#inputs-${sid}`).value);
   const params=collectParams(sid);
   const r=await fetch(`/api/run/${sid}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs,params})}).then(r=>r.json());
   statusClass[sid]=r.status; renderNav();
@@ -206,7 +220,7 @@ function renderTable(rows){
 }
 
 async function runAll(){
-  const inputs=parseInputs("select",($("#inputs-select")||{}).value||"");
+  const inputs=selectInputs();
   const r=await fetch("/api/pipeline",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({inputs})}).then(r=>r.json());
   (r.results||[]).forEach(x=>statusClass[x.step_id]=x.status); renderNav();
   const m=$("#main"); m.innerHTML=""; m.appendChild(el("h2",null,"整条流水线结果"));

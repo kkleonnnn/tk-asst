@@ -2,12 +2,11 @@
   "_note": "硬指标/费率的集中配置。留空的键会用步骤定义里的默认值。网页里改参数后点“保存参数”也会写回这里。费率一律以 TikTok 学习中心马来站当期为准，下面是占位示例。",
   "steps": {
     "select": {
-      "min_growth": 0.5,
-      "min_likes": 10000,
-      "price_min_usd": 15,
-      "price_max_usd": 30,
-      "max_purchase_rmb": 50,
-      "max_weight_g": 500
+      "min_sales_30d": 100,
+      "min_rating": 4.5,
+      "min_reviews": 20,
+      "price_max_myr": 100,
+      "trend_up_ratio": 1.1
     },
     "pricing": {
       "freight_rmb_per_kg": 0,

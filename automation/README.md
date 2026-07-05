@@ -24,7 +24,7 @@ python3 run.py
 ## 现在能真跑的 3 步
 | 步骤 | 干什么 | 输入 |
 |---|---|---|
-| ① 选品打分 | 按硬指标（增长/点赞/客单价/进货价/重量）打分排序 + 红旗（🔴进货价>50、大件） | 候选品 CSV/JSON |
+| ① 选品打分 | **上传出海匠导出 xlsx/csv**，按市场信号（近30天销量/趋势/评分/评论/售价）打分排序（进货价/重量/运费/利润顺移到 ②④） | 出海匠 xlsx / csv |
 | ④ 定价利润 | 藏价倒推折前/折后价 + 单件利润；可填竞品价反算利润 | `{"purchase_price_rmb":20,"weight_g":300}` |
 | ⑤ 上架预检 | 生成标题 + 合规检查（长度/违禁词/禁售类目/品牌授权/图≥5） | `{"core_word":"除湿盒","keywords":"防潮"...}` |
 
@@ -56,9 +56,10 @@ automation/
 ├── credentials.example.json  # 接口凭证模板（真凭证存 credentials.json，已 gitignore）
 ├── engine/
 │   ├── pipeline.py   # 流水线引擎：Step 基类 / StepResult / Pipeline(run_step, run_all)
-│   └── creds.py      # 接口凭证读写（脱敏回显、secret 留空不改）
+│   ├── creds.py      # 接口凭证读写（脱敏回显、secret 留空不改）
+│   └── xlsx.py       # 纯 stdlib 读 xlsx（解析出海匠导出，零依赖）
 ├── steps/            # 每个环节一个步骤类
-│   ├── scoring.py    # ① 选品打分（真）
+│   ├── scoring.py    # ① 选品打分（真，上传出海匠 xlsx/csv → 市场信号打分）
 │   ├── pricing.py    # ④ 定价利润（真，货代费默认对齐达意 2 元/单）
 │   ├── listing.py    # ⑤ 上架预检（真）
 │   ├── gated.py      # ②③⑥ 需授权占位（返回 BLOCKED 暂停；⑥发货带达意仓/收费/赔付）
