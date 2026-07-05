@@ -218,7 +218,7 @@ function renderResult(r){
   if(d.summary) c.appendChild(el("div",null,"<b>"+d.summary+"</b>"));
   if(d.fields){ const kv=el("div","kv"); Object.entries(d.fields).forEach(([k,v])=>{kv.appendChild(el("div","k",k));kv.appendChild(el("div",null,String(v)));}); c.appendChild(kv); }
   if(d.checks){ const ul=el("ul","checks"); d.checks.forEach(ck=>{const li=el("li",ck.ok?"c-ok":"c-bad",ck.label+(ck.note?` <span class="note">— ${ck.note}</span>`:"")); ul.appendChild(li);}); c.appendChild(ul); }
-  if(d.table&&d.table.length){ c.appendChild(active==="select" ? renderSelectableTable(d.table) : renderTable(d.table)); }
+  if(d.table&&d.table.length){ c.appendChild(active==="select" ? renderSelectableTable(d.table) : active==="source" ? renderSourcingTable(d.table) : renderTable(d.table)); }
   if(d.notes){ const ul=el("ul","notes"); d.notes.forEach(n=>ul.appendChild(el("li",null,n))); c.appendChild(ul); }
 }
 
@@ -228,6 +228,27 @@ function renderTable(rows){
   const t=el("table"); const thead=el("tr"); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
   rows.forEach(r=>{const tr=el("tr"); keys.forEach(k=>tr.appendChild(el("td",null,cellHtml(r[k])))); t.appendChild(tr);});
   return t;
+}
+function renderSourcingTable(rows){
+  const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
+  const t=el("table"); const thead=el("tr"); keys.forEach(k=>thead.appendChild(el("th",null,k))); t.appendChild(thead);
+  rows.forEach(r=>{
+    const tr=el("tr");
+    keys.forEach(k=>{
+      if(k==="进货价¥"||k==="重量g"){
+        const td=el("td"); const inp=el("input"); inp.type="number"; inp.step="any"; inp.style.width="72px"; inp.placeholder="填";
+        const item=(carry.selected||[]).find(x=>x["商品名"]===r["商品名"]);
+        const field=(k==="进货价¥")?"进货价":"重量";
+        if(item&&item[field]!=null&&item[field]!=="") inp.value=item[field];
+        inp.onchange=()=>{ if(item) item[field]=inp.value; };
+        td.appendChild(inp); tr.appendChild(td);
+      } else { tr.appendChild(el("td",null,cellHtml(r[k]))); }
+    });
+    t.appendChild(tr);
+  });
+  const tip=el("div"); tip.style.cssText="color:var(--accent);font-size:12px;margin-top:8px";
+  tip.textContent="点链接去 1688 找到源 → 把进货价/重量填进上面这两列 → ④定价 会自动带过去批量算利润。";
+  const wrap=el("div"); wrap.appendChild(t); wrap.appendChild(tip); return wrap;
 }
 function renderSelectableTable(rows){
   const keys=Object.keys(rows[0]).filter(k=>!k.startsWith("_"));
@@ -248,7 +269,7 @@ function renderSelectableTable(rows){
   wrap.appendChild(t);
   bAll.onclick=()=>{ boxes.forEach(b=>b.checked=true); upd(); };
   bNone.onclick=()=>{ boxes.forEach(b=>b.checked=false); upd(); };
-  function upd(){ carry.selected=boxes.filter(b=>b.checked).map(b=>({"商品名":b._row["商品名"],"类目":b._row["类目"],"售价RM":b._row["售价RM"]})); cap.textContent="已勾选 "+carry.selected.length+" 个 → 进 ② 自动带过去"; }
+  function upd(){ const prev={}; (carry.selected||[]).forEach(x=>{prev[x["商品名"]]=x;}); carry.selected=boxes.filter(b=>b.checked).map(b=>{const o=prev[b._row["商品名"]]||{}; return {"商品名":b._row["商品名"],"类目":b._row["类目"],"售价RM":b._row["售价RM"],"进货价":o["进货价"]||"","重量":o["重量"]||""};}); cap.textContent="已勾选 "+carry.selected.length+" 个 → 进 ② 自动带过去"; }
   upd();
   return wrap;
 }
