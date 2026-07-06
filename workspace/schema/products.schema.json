@@ -1,0 +1,140 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tk-asst 品库（products.json）",
+  "type": "object",
+  "required": ["schema_version", "products"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "updated_at": { "type": "string", "description": "ISO 时间" },
+    "products": { "type": "array", "items": { "$ref": "#/definitions/product_card" } }
+  },
+  "definitions": {
+    "product_card": {
+      "type": "object",
+      "required": ["id", "status", "source_data"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^p_\\d{4,}$", "description": "品卡ID，驾驶舱生成，如 p_0001" },
+        "status": { "enum": ["imported", "scored", "selected", "sourcing", "sourced", "priced", "listing_ready", "exported", "published", "testing", "archived", "dropped"] },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "source_data": {
+          "type": "object",
+          "description": "① 导入的市场数据（出海匠），字段名与出海匠对齐",
+          "properties": {
+            "name": { "type": "string", "description": "商品名（多为英文/马来文）" },
+            "category": { "type": "string" },
+            "price_low_myr": { "type": ["number", "null"] },
+            "price_high_myr": { "type": ["number", "null"] },
+            "sales_30d": { "type": ["number", "null"] },
+            "sales_7d": { "type": ["number", "null"] },
+            "rating": { "type": ["number", "null"] },
+            "reviews": { "type": ["number", "null"] },
+            "commission_pct": { "type": ["number", "null"] },
+            "tiktok_url": { "type": ["string", "null"] }
+          },
+          "required": ["name"]
+        },
+        "scoring": {
+          "type": "object",
+          "description": "② 打分结果（驾驶舱 core/scoring 写入）",
+          "properties": {
+            "score": { "type": "number" },
+            "verdict": { "type": "string", "description": "推荐/观察/不建议/缺销量" },
+            "trend": { "type": "string" },
+            "flags": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "description": "③ 候选货源（引擎 sourcing 任务或人工写入）",
+          "items": {
+            "type": "object",
+            "required": ["id", "url", "price_rmb"],
+            "properties": {
+              "id": { "type": "string", "description": "s1/s2/…（品卡内唯一）" },
+              "url": { "type": "string", "description": "1688 商品链接" },
+              "title": { "type": "string" },
+              "price_rmb": { "type": "number", "description": "进货价（元）" },
+              "weight_g": { "type": ["number", "null"], "description": "单件重量（克），影响运费" },
+              "moq": { "type": ["number", "null"], "description": "起订量" },
+              "ship_from": { "type": ["string", "null"], "description": "发货地（离东莞达意仓越近越好）" },
+              "supports_dropship": { "type": ["boolean", "null"], "description": "支持一件代发?" },
+              "seller_rating": { "type": ["string", "null"] },
+              "notes": { "type": "string" },
+              "added_by": { "type": "string", "description": "claude / codex / manual" },
+              "added_at": { "type": "string" }
+            }
+          }
+        },
+        "chosen_source_id": { "type": ["string", "null"], "description": "④ 人工选定的货源 id" },
+        "pricing": {
+          "type": "object",
+          "description": "④ 定价结果（驾驶舱 core/pricing 计算写入，货币 RM）",
+          "properties": {
+            "net_price_myr": { "type": "number", "description": "折后结算价" },
+            "list_price_myr": { "type": "number", "description": "折前展示价" },
+            "profit_myr": { "type": "number" },
+            "profit_rate": { "type": "number" },
+            "params_used": { "type": "object" }
+          }
+        },
+        "listing": {
+          "type": "object",
+          "description": "⑤ 上架素材（引擎 listing 任务写入）",
+          "properties": {
+            "title_ms": { "type": "string", "description": "马来语标题（≤255字符）" },
+            "title_en": { "type": "string" },
+            "desc_ms": { "type": "string", "description": "马来语详情描述" },
+            "selling_points_ms": { "type": "array", "items": { "type": "string" } },
+            "sku_names": { "type": "array", "items": { "type": "string" } },
+            "compliance": {
+              "type": "object",
+              "properties": {
+                "pass": { "type": "boolean" },
+                "issues": { "type": "array", "items": { "type": "string" } }
+              }
+            },
+            "images": { "type": "array", "items": { "type": "string" }, "description": "相对 workspace/ 的路径" },
+            "generated_by": { "type": "string" },
+            "generated_at": { "type": "string" }
+          }
+        },
+        "export": {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "description": "素材包路径（exports/…）" },
+            "exported_at": { "type": "string" }
+          }
+        },
+        "publish": {
+          "type": "object",
+          "properties": {
+            "published_at": { "type": ["string", "null"] },
+            "tiktok_product_id": { "type": ["string", "null"] }
+          }
+        },
+        "testing": {
+          "type": "object",
+          "description": "⑥ 测款期（7/14/28 天节奏）",
+          "properties": {
+            "listed_at": { "type": ["string", "null"] },
+            "notes": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "log": {
+          "type": "array",
+          "description": "流转日志（每次重要变更追加一条）",
+          "items": {
+            "type": "object",
+            "required": ["at", "by", "event"],
+            "properties": {
+              "at": { "type": "string" },
+              "by": { "type": "string", "description": "console / claude / codex / manual" },
+              "event": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

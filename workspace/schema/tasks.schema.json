@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tk-asst 任务队列（tasks.json）",
+  "type": "object",
+  "required": ["schema_version", "tasks"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "updated_at": { "type": "string" },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "product_ids", "status", "created_at"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^t_\\d{4,}$" },
+          "type": { "enum": ["sourcing", "listing"], "description": "任务规范见 automation/engine/tasks/<type>.md" },
+          "product_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "status": { "enum": ["pending", "in_progress", "done", "failed"] },
+          "created_at": { "type": "string" },
+          "claimed_by": { "type": ["string", "null"], "description": "认领者：claude / codex / 人名" },
+          "claimed_at": { "type": ["string", "null"] },
+          "done_at": { "type": ["string", "null"] },
+          "params": { "type": "object", "description": "任务附加参数（如 sourcing 的候选数量要求）" },
+          "result_note": { "type": "string", "description": "完成/失败的一句话说明" }
+        }
+      }
+    }
+  }
+}
