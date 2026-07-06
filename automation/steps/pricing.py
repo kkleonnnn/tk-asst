@@ -37,14 +37,14 @@ def _price_one(purchase, weight, params):
     """核心藏价计算。返回 (dict, None) 或 (None, 错误说明)。"""
     freight_kg = _f(params, "freight_rmb_per_kg")
     agent = _f(params, "agent_fee_rmb")
-    fx = float(params.get("fx_rmb_per_usd") or 7.2) or 7.2
+    fx = float(params.get("fx_rmb_per_myr") or 1.55) or 1.55
     commission = _f(params, "commission_rate") / 100
     transaction = _f(params, "transaction_fee_rate") / 100
     ecom = _f(params, "ecom_service_rate") / 100
     influencer = _f(params, "influencer_rate") / 100
     profit_r = _f(params, "target_profit_rate") / 100
     discount_n = float(params.get("discount_n") or 10) or 10
-    other = _f(params, "other_cost_usd")
+    other = _f(params, "other_cost_myr")
 
     freight_rmb = weight / 1000.0 * freight_kg
     cost_rmb = purchase + freight_rmb + agent
@@ -72,7 +72,7 @@ class PricingStep(Step):
             "利润<0 或 费率+利润率≥100% 会报红。")
     requires = ["费率需你去 TikTok 学习中心核『马来站当期』值（下方默认是占位示例，勿照抄）"]
     inputs_help = ('默认用 ①②带来的品批量算（②里填了进货价/重量的才算）。'
-                   '单品试算就填 JSON：{"purchase_price_rmb": 20, "weight_g": 300, "target_sell_price_usd": 0}。')
+                   '单品试算就填 JSON：{"purchase_price_rmb": 20, "weight_g": 300, "target_sell_price_myr": 0}。')
     params = [
         {"key": "purchase_price_rmb", "label": "采购价(元/件)", "type": "number", "default": 20,
          "help": "仅单品模式用；批量取②里填的进货价"},
@@ -82,7 +82,8 @@ class PricingStep(Step):
          "help": "查『马来官方运价表』填；0=暂不计"},
         {"key": "agent_fee_rmb", "label": "货代费(元/件)", "type": "number", "default": 2,
          "help": "达意货代打包贴单送官仓 2 元/单(量大可谈)；超规(三边和≥220cm 或 ≥10kg)+1 元"},
-        {"key": "fx_rmb_per_usd", "label": "汇率(元/美元)", "type": "number", "default": 7.2},
+        {"key": "fx_rmb_per_myr", "label": "汇率(元/马币RM)", "type": "number", "default": 1.55,
+         "help": "1 马币≈多少人民币，以实时汇率为准(约1.5~1.6)"},
         {"key": "commission_rate", "label": "平台佣金率(%)", "type": "number", "default": 5,
          "help": "⚠️马来当期需核，新商可能免佣期"},
         {"key": "transaction_fee_rate", "label": "交易手续费率(%)", "type": "number", "default": 2,
@@ -93,7 +94,7 @@ class PricingStep(Step):
         {"key": "target_profit_rate", "label": "目标利润率(%)", "type": "number", "default": 20},
         {"key": "discount_n", "label": "折扣N(填7=打7折)", "type": "number", "default": 7,
          "help": "货叮咚口径：填7→店铺后台做30%off。必设，否则易亏"},
-        {"key": "other_cost_usd", "label": "其他成本(USD/件)", "type": "number", "default": 0},
+        {"key": "other_cost_myr", "label": "其他成本(RM/件)", "type": "number", "default": 0},
     ]
 
     def run(self, inputs, params, config):
@@ -112,21 +113,21 @@ class PricingStep(Step):
             wt = _num(p.get("重量") if isinstance(p, dict) else None)
             if pur is None or wt is None:
                 rows.append({"商品名": str(name)[:24], "采购¥": _g(pur), "重量g": _g(wt),
-                             "折后价$": "—", "单件利润$": "—", "利润率": "—", "备注": "缺进货价/重量 → 回②填"})
+                             "折后价RM": "—", "单件利润RM": "—", "利润率": "—", "备注": "缺进货价/重量 → 回②填"})
                 continue
             res, err = _price_one(pur, wt, params)
             if err:
                 rows.append({"商品名": str(name)[:24], "采购¥": f"{pur:g}", "重量g": f"{wt:g}",
-                             "折后价$": "—", "单件利润$": "—", "利润率": "—", "备注": err})
+                             "折后价RM": "—", "单件利润RM": "—", "利润率": "—", "备注": err})
                 continue
             good = res["profit_usd"] > 0
             ok += 1 if good else 0
             rows.append({"商品名": str(name)[:24], "采购¥": f"{pur:g}", "重量g": f"{wt:g}",
-                         "折后价$": f"{res['net']:.2f}", "单件利润$": f"{res['profit_usd']:.2f}",
+                         "折后价RM": f"{res['net']:.2f}", "单件利润RM": f"{res['profit_usd']:.2f}",
                          "利润率": f"{res['profit_r']*100:.0f}%", "备注": ("✅" if good else "⛔亏")})
-            priced.append({"商品名": name, "net_price_usd": round(res["net"], 2),
-                           "profit_usd": round(res["profit_usd"], 2)})
-        filled = [r for r in rows if r["折后价$"] != "—"]
+            priced.append({"商品名": name, "net_price_myr": round(res["net"], 2),
+                           "profit_myr": round(res["profit_usd"], 2)})
+        filled = [r for r in rows if r["折后价RM"] != "—"]
         return StepResult(
             status=OK,
             message=f"批量定价 {len(rows)} 个（来自①②带来的品）；已算 {len(filled)} 个、缺价 {len(rows)-len(filled)} 个。",
@@ -146,32 +147,32 @@ class PricingStep(Step):
         net, list_price = res["net"], res["list_price"]
         profit_usd, fees_usd, fees_frac = res["profit_usd"], res["fees_usd"], res["fees_frac"]
         checks = [
-            {"label": f"单件利润 ${profit_usd:.2f}（利润率 {res['profit_r']*100:.0f}%）",
+            {"label": f"单件利润 RM{profit_usd:.2f}（利润率 {res['profit_r']*100:.0f}%）",
              "ok": profit_usd > 0, "note": "藏价法：利润率按你设定值达成"},
             {"label": "已设折扣", "ok": res["discount_n"] < 10,
              "note": f"填{res['discount_n']:.0f}→店铺后台做 {(10-res['discount_n'])*10:.0f}% off（藏价≠最终价）"},
         ]
         fields = {
             "成本合计(¥/件)": f"{res['cost_rmb']:.2f}  (采购{purchase:.1f}+头程{res['freight_rmb']:.2f}+货代{res['agent']:.1f})",
-            "成本(USD)": f"{res['cost_usd']:.2f}",
-            "折前展示价(USD)": f"{list_price:.2f}", "折后结算价(USD)": f"{net:.2f}",
-            "平台各项费(USD)": f"{fees_usd:.2f}  (佣金+手续费+增长费+达人{fees_frac*100:.1f}%)",
-            "单件利润(USD)": f"{profit_usd:.2f}", "利润率": f"{res['profit_r']*100:.0f}%",
+            "成本(RM)": f"{res['cost_usd']:.2f}",
+            "折前展示价(RM)": f"{list_price:.2f}", "折后结算价(RM)": f"{net:.2f}",
+            "平台各项费(RM)": f"{fees_usd:.2f}  (佣金+手续费+增长费+达人{fees_frac*100:.1f}%)",
+            "单件利润(RM)": f"{profit_usd:.2f}", "利润率": f"{res['profit_r']*100:.0f}%",
         }
         notes = ["费率均为占位示例，务必核马来当期（学习中心）。",
                  "达人佣金藏5%但实付15% → 多的10%从利润里扣。"]
-        target = float(inputs.get("target_sell_price_usd") or 0)
+        target = float(inputs.get("target_sell_price_myr") or 0)
         if target > 0:
             t_profit = target - res["cost_usd"] - fees_frac * target
-            fields["【反算】目标售价(USD)"] = f"{target:.2f}"
-            fields["【反算】该价位利润(USD)"] = f"{t_profit:.2f}"
+            fields["【反算】目标售价(RM)"] = f"{target:.2f}"
+            fields["【反算】该价位利润(RM)"] = f"{t_profit:.2f}"
             fields["【反算】该价位利润率"] = f"{(t_profit/target*100) if target else 0:.1f}%"
-            checks.append({"label": f"按竞品/目标价 ${target:.2f} 卖仍盈利", "ok": t_profit > 0,
-                           "note": f"利润 ${t_profit:.2f}"})
+            checks.append({"label": f"按竞品/目标价 RM{target:.2f} 卖仍盈利", "ok": t_profit > 0,
+                           "note": f"利润 RM{t_profit:.2f}"})
         return StepResult(
             status=OK,
-            message=f"折后结算价 ${net:.2f}，单件利润 ${profit_usd:.2f}（{res['profit_r']*100:.0f}%）。",
-            data={"summary": f"折前 ${list_price:.2f} / 折后 ${net:.2f} / 利润 ${profit_usd:.2f}",
+            message=f"折后结算价 RM{net:.2f}，单件利润 RM{profit_usd:.2f}（{res['profit_r']*100:.0f}%）。",
+            data={"summary": f"折前 RM{list_price:.2f} / 折后 RM{net:.2f} / 利润 RM{profit_usd:.2f}",
                   "fields": fields, "checks": checks, "notes": notes},
-            outputs={"pricing": [{"net_price_usd": round(net, 2), "profit_usd": round(profit_usd, 2)}]},
+            outputs={"pricing": [{"net_price_myr": round(net, 2), "profit_myr": round(profit_usd, 2)}]},
         )
