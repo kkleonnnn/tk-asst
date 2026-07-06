@@ -1,6 +1,6 @@
 """驾驶舱 web 服务（纯标准库 http.server，零依赖）——薄层：只做路由与 IO 粘合。
 
-M0 骨架：静态文件 + 健康检查 + 工作台汇总。看板/导入等 API 在 M1 落地。
+业务动作全在 flows.py；workspace 读写全在 store.py；本文件不写业务逻辑。
 启动：python3 run.py
 """
 import json
@@ -9,6 +9,8 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import flows  # noqa: E402
+from core import scoring  # noqa: E402
 from store import Store  # noqa: E402
 
 HOST = "127.0.0.1"
@@ -40,6 +42,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        if not n:
+            return {}
+        try:
+            return json.loads(self.rfile.read(n).decode("utf-8") or "{}")
+        except json.JSONDecodeError:
+            return {}
+
     def do_GET(self):
         if self.path in STATIC:
             fname, ctype = STATIC[self.path]
@@ -50,13 +61,41 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(500, {"error": f"{fname} 缺失"})
         if self.path == "/favicon.ico":
             return self._send(204, b"", "image/x-icon")
-        if self.path == "/api/health":
-            return self._send(200, {"ok": True, "version": "v2-m0"})
-        if self.path == "/api/workspace":
-            try:
+        try:
+            if self.path == "/api/health":
+                return self._send(200, {"ok": True, "version": "v2-m1"})
+            if self.path == "/api/workspace":
                 return self._send(200, store.summary())
-            except ValueError as e:  # schema 版本不符等
-                return self._send(500, {"error": str(e)})
+            if self.path == "/api/products":
+                return self._send(200, store.load_products())
+            if self.path == "/api/tasks":
+                return self._send(200, store.load_tasks())
+            if self.path == "/api/scoring-params":
+                return self._send(200, scoring.DEFAULTS)
+        except ValueError as e:  # schema 版本不符等
+            return self._send(500, {"error": str(e)})
+        return self._send(404, {"error": "not found"})
+
+    def do_POST(self):
+        body = self._body()
+        try:
+            if self.path == "/api/import":
+                return self._send(200, flows.import_products(
+                    store,
+                    file_b64=body.get("file_b64"),
+                    file_name=body.get("file_name", ""),
+                    csv_text=body.get("csv_text", ""),
+                    params=body.get("params")))
+            if self.path == "/api/status":
+                return self._send(200, flows.set_status_bulk(
+                    store, body.get("ids") or [], body.get("status", ""),
+                    event=body.get("event")))
+            if self.path == "/api/dispatch":
+                return self._send(200, flows.dispatch_task(
+                    store, body.get("type", ""), body.get("ids") or [],
+                    body.get("params")))
+        except (ValueError, KeyError) as e:
+            return self._send(400, {"error": str(e)})
         return self._send(404, {"error": "not found"})
 
 

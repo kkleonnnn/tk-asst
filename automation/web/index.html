@@ -9,22 +9,41 @@
 <body>
 <header class="topbar">
   <h1>🛒 tk-asst 驾驶舱</h1>
-  <span class="badge">v2 · M0 地基</span>
-  <span class="sub">马来跨境店 · 品卡看板（M1 施工中）</span>
+  <span class="sub" id="stats">加载中…</span>
+  <span class="grow"></span>
+  <button class="btn primary" id="btnImport">⬆ 导入出海匠</button>
 </header>
+
 <main class="main">
-  <div class="card">
-    <h2>工作台状态</h2>
-    <div id="ws" class="kv"><span class="muted">读取中…</span></div>
-  </div>
-  <div class="card">
-    <h2>M0 已就位</h2>
-    <div class="muted">
-      数据总线 workspace/（品卡+任务协议）· 引擎协议 AGENTS.md · core/ 纯函数（打分/定价RM/合规/xlsx）· 单测与 CI。<br>
-      看板 UI 在 M1 交付——进度见仓库 ROADMAP.md。
+  <!-- 导入面板（默认隐藏） -->
+  <div class="panel" id="importPanel" style="display:none">
+    <div class="row">
+      <input type="file" id="file" accept=".xlsx,.csv">
+      <button class="btn primary" id="btnDoImport">开始导入并打分</button>
+      <button class="btn" id="btnCancelImport">取消</button>
+      <span class="muted" id="importHint">选出海匠导出的 xlsx / csv（同名品自动跳过）</span>
     </div>
+    <div class="drawer-toggle" id="paramsToggle">⚙ 打分参数（可调，默认即可）</div>
+    <div class="drawer" id="paramsDrawer"><div class="params" id="paramsGrid"></div></div>
+  </div>
+
+  <!-- 状态筛选 -->
+  <div class="chips" id="chips"></div>
+
+  <!-- 批量操作条 -->
+  <div class="bulkbar" id="bulkbar" style="display:none"></div>
+
+  <!-- 品卡表 -->
+  <div class="tablewrap" id="tablewrap"></div>
+
+  <!-- 任务队列 -->
+  <div class="card" id="tasksCard" style="display:none">
+    <h2>引擎任务队列</h2>
+    <div id="tasksList"></div>
   </div>
 </main>
+
+<div class="toast" id="toast"></div>
 <script src="/app.js"></script>
 </body>
 </html>

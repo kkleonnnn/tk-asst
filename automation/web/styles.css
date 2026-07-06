@@ -1,38 +1,33 @@
 /* ============================================================
    tk-asst 驾驶舱 · design tokens
-   规范：所有组件样式只引用下面的 token 变量，不写裸值。
+   规范：组件样式只引用 token 变量，不写裸值。
    换肤/精修 = 只改 :root 这一段（后续交 Claude design 调整）。
    ============================================================ */
 :root {
   /* 色板 */
-  --bg: #0e1116;            /* 页面底 */
-  --surface: #161b22;       /* 卡片/面板 */
-  --surface-2: #1f2630;     /* 次级面板/悬浮 */
-  --line: #2b3440;          /* 分隔线/描边 */
-  --text: #e6edf3;          /* 主文字 */
-  --muted: #8b98a5;         /* 次要文字 */
-  --accent: #2f81f7;        /* 主操作/链接 */
-  --ok: #3fb950;            /* 成功 */
-  --warn: #d29922;          /* 暂停/待办 */
-  --danger: #f85149;        /* 报错/红线 */
+  --bg: #0e1116;
+  --surface: #161b22;
+  --surface-2: #1f2630;
+  --line: #2b3440;
+  --text: #e6edf3;
+  --muted: #8b98a5;
+  --accent: #2f81f7;
+  --accent-weak: rgba(47, 129, 247, .15);
+  --ok: #3fb950;
+  --ok-weak: rgba(63, 185, 80, .15);
+  --warn: #d29922;
+  --warn-weak: rgba(210, 153, 34, .15);
+  --danger: #f85149;
+  --danger-weak: rgba(248, 81, 73, .15);
 
   /* 字号 */
-  --fs-xs: 12px;
-  --fs-sm: 13px;
-  --fs-md: 14px;
-  --fs-lg: 16px;
-  --fs-xl: 20px;
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px;
 
   /* 间距（4 的倍数） */
-  --sp-1: 4px;
-  --sp-2: 8px;
-  --sp-3: 12px;
-  --sp-4: 16px;
-  --sp-6: 24px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-6: 24px;
 
   /* 圆角与阴影 */
-  --radius: 8px;
-  --radius-lg: 12px;
+  --radius: 8px; --radius-lg: 12px;
   --shadow: 0 1px 3px rgba(0, 0, 0, .4);
 
   /* 字体 */
@@ -41,42 +36,117 @@
 }
 
 * { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: var(--fs-md)/1.6 var(--font); }
+a { color: var(--accent); text-decoration: none; }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: var(--fs-md)/1.6 var(--font);
-}
-
-/* ---- 布局骨架 ---- */
+/* ---- 顶栏 ---- */
 .topbar {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-6);
   background: var(--surface); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 10;
 }
-.topbar h1 { font-size: var(--fs-lg); margin: 0; }
+.topbar h1 { font-size: var(--fs-lg); margin: 0; white-space: nowrap; }
 .topbar .sub { color: var(--muted); font-size: var(--fs-xs); }
+.topbar .grow { flex: 1; }
 
-.main { max-width: 960px; margin: 0 auto; padding: var(--sp-6); }
+.main { max-width: 1080px; margin: 0 auto; padding: var(--sp-6); }
 
-/* ---- 组件 ---- */
+/* ---- 按钮 ---- */
+.btn {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px var(--sp-3); font-size: var(--fs-sm); font-family: var(--font);
+  cursor: pointer; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ---- 卡片 ---- */
 .card {
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius-lg); padding: var(--sp-4);
   margin-bottom: var(--sp-4); box-shadow: var(--shadow);
 }
-.card h2 { font-size: var(--fs-md); color: var(--muted); margin: 0 0 var(--sp-3); }
+.card h2 { font-size: var(--fs-md); color: var(--muted); margin: 0 0 var(--sp-3); font-weight: 600; }
 
+/* ---- 状态 chips ---- */
+.chips { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.chip {
+  padding: 4px var(--sp-3); border-radius: 999px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line);
+  font-size: var(--fs-sm); color: var(--muted); user-select: none;
+}
+.chip:hover { border-color: var(--accent); }
+.chip.active { background: var(--accent-weak); border-color: var(--accent); color: var(--text); }
+.chip b { color: var(--text); font-weight: 600; }
+
+/* ---- 批量操作条 ---- */
+.bulkbar {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3);
+  background: var(--accent-weak); border: 1px solid var(--accent);
+  border-radius: var(--radius); font-size: var(--fs-sm);
+}
+
+/* ---- 表格 ---- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-lg); }
+table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); }
+th, td { padding: var(--sp-2) var(--sp-3); text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { background: var(--surface); color: var(--muted); font-weight: 600; position: sticky; top: 0; }
+tbody tr:hover { background: var(--surface); }
+tbody tr:last-child td { border-bottom: none; }
+td.flags { max-width: 320px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+
+/* ---- 徽标 ---- */
 .badge {
-  display: inline-block; padding: 2px var(--sp-2); border-radius: 999px;
+  display: inline-block; padding: 1px var(--sp-2); border-radius: 999px;
   font-size: var(--fs-xs); background: var(--surface-2); color: var(--muted);
 }
-.badge.ok { color: var(--ok); }
-.badge.warn { color: var(--warn); }
+.badge.ok { background: var(--ok-weak); color: var(--ok); }
+.badge.warn { background: var(--warn-weak); color: var(--warn); }
+.badge.danger { background: var(--danger-weak); color: var(--danger); }
+.badge.accent { background: var(--accent-weak); color: var(--accent); }
 
+.score { font-weight: 700; font-family: var(--font-mono); }
+
+/* ---- 导入面板 / 参数抽屉 ---- */
+.panel { border: 1px dashed var(--line); border-radius: var(--radius-lg); padding: var(--sp-4); margin-bottom: var(--sp-4); background: var(--surface); }
+.row { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; }
+.drawer-toggle { color: var(--muted); font-size: var(--fs-xs); cursor: pointer; user-select: none; margin-top: var(--sp-2); }
+.drawer { display: none; margin-top: var(--sp-3); }
+.drawer.open { display: block; }
+.params { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--sp-3); }
+.p label { display: block; font-size: var(--fs-xs); color: var(--muted); margin-bottom: 2px; }
+input[type="number"], input[type="text"] {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px var(--sp-2); font-size: var(--fs-sm); font-family: var(--font);
+}
+input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+input[type="file"] { color: var(--muted); font-size: var(--fs-sm); }
+
+/* ---- 任务区 ---- */
+.task { display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-2) 0; border-bottom: 1px dashed var(--line); font-size: var(--fs-sm); flex-wrap: wrap; }
+.task:last-child { border-bottom: none; }
+.mono { font-family: var(--font-mono); }
+
+/* ---- 空态 / 提示 ---- */
+.empty { text-align: center; color: var(--muted); padding: var(--sp-6); }
+.muted { color: var(--muted); font-size: var(--fs-sm); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-1) var(--sp-4); font-size: var(--fs-sm); }
 .kv .k { color: var(--muted); }
 
-.muted { color: var(--muted); font-size: var(--fs-sm); }
-a { color: var(--accent); text-decoration: none; }
+/* ---- Toast ---- */
+.toast {
+  position: fixed; bottom: var(--sp-6); right: var(--sp-6);
+  background: var(--surface-2); border: 1px solid var(--accent);
+  border-radius: var(--radius); padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-sm); box-shadow: var(--shadow);
+  opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 20;
+  max-width: 420px;
+}
+.toast.show { opacity: 1; }
