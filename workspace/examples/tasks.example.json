@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-06T12:00:00+08:00",
+  "tasks": [
+    {
+      "id": "t_0001",
+      "type": "sourcing",
+      "product_ids": ["p_0001", "p_0002"],
+      "status": "done",
+      "created_at": "2026-07-06T10:35:00+08:00",
+      "claimed_by": "claude",
+      "claimed_at": "2026-07-06T10:50:00+08:00",
+      "done_at": "2026-07-06T11:20:00+08:00",
+      "params": { "min_candidates": 2 },
+      "result_note": "2 个品各写入 2 个候选货源；p_0002 无一件代发源，已备注"
+    },
+    {
+      "id": "t_0002",
+      "type": "listing",
+      "product_ids": ["p_0001"],
+      "status": "pending",
+      "created_at": "2026-07-06T12:00:00+08:00",
+      "claimed_by": null,
+      "claimed_at": null,
+      "done_at": null,
+      "params": {},
+      "result_note": ""
+    }
+  ]
+}

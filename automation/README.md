@@ -1,80 +1,37 @@
-# 运营控制台（automation/）—— 半自动化框架 v1
+# automation/ —— tk-asst 驾驶舱（v2）
 
-一个**本地网页**，把「选品 → 找货源 → 采集 → 定价 → 上架 → 发货」做成**分步、可调参数、结果内联、遇阻塞暂停**的流水线。目标：以后校长在一个网页里就能跑完选品到发货，单步跑通后串成自动化流程。
+本地网页：**品卡看板 + 确定性计算 + 人工决策 + 素材导出**。需要"脑子"的活（找货源/翻译/素材）不在这里做——派发成任务由引擎执行（协议见根目录 `AGENTS.md`，数据总线见 `../workspace/README.md`）。
 
-> **v1 定位**：**框架先齐全**。6 个环节全部就位；其中 3 个纯计算步骤（选品打分 / 定价利润 / 上架预检）**现在就能真跑**；另 3 个（找货源 / 采集 / 发货）**卡在平台授权**，会明确报"缺什么、去哪办"并**暂停**——等授权/接口就位再把它们换成真实现。
-
-## 怎么跑（零依赖，只要有 Python 3）
+## 启动（零依赖，只要有 Python 3）
 ```bash
 cd automation
-python3 run.py
+python3 run.py        # 自动打开 http://127.0.0.1:8765/
 ```
-浏览器自动打开 `http://127.0.0.1:8765/`。退出：终端按 `Ctrl+C`。
-（没装/网络无关，不需要 pip install 任何东西。）
 
-## 网页怎么用
-- **左侧**：6 个步骤，圆点颜色=状态（灰=未跑、绿=成功、黄=需授权暂停、红=报错）。带"需授权"的是当前卡住的步骤。
-- **点一个步骤**，右侧看到：
-  - **说明**：这一步在干什么；**前置**：卡在什么授权（黄框）。
-  - **参数**：硬指标 / 费率，直接改；点「💾 保存参数」写回 `config.json`（下次默认就用新值）。
-  - **输入**：按输入框提示粘 CSV / JSON（选品可直接贴 `samples/candidates.csv`）。
-  - **▶ 运行此步** → 下方出结果（打分表 / 定价明细 / 合规清单）。
-- **顶部「▶ 跑通整条」**：从选品开始按顺序跑，**遇到需授权的步骤自动暂停**（正常），人工处理后回来单步续跑。
-
-## 现在能真跑的步骤（① ② ④ ⑤）
-| 步骤 | 干什么 | 输入 |
-|---|---|---|
-| ① 选品打分 | **上传出海匠导出 xlsx/csv**，按市场信号（近30天销量/趋势/评分/评论/售价）打分排序 + 结果表**勾选**想做的品带入 ② | 出海匠 xlsx / csv |
-| ② 找货源 | 把 ① 勾选的品生成 **1688 关键词搜索链接**（点开去搜）；不需开放平台，App Key 只是全自动升级 | ① 勾选联动 / JSON |
-| ④ 定价利润 | 藏价倒推折前/折后价 + 单件利润；可填竞品价反算利润 | `{"purchase_price_rmb":20,"weight_g":300}` |
-| ⑤ 上架预检 | 生成标题 + 合规检查（长度/违禁词/禁售类目/品牌授权/图≥5） | `{"core_word":"除湿盒","keywords":"防潮"...}` |
-
-## 卡授权/待接入的步骤（③ ⑥；② 已可零凭证半自动）
-| 步骤 | 需要什么 |
-|---|---|
-| ③ 采集 | 1688 商详 API；或继续用**货叮咚插件**采集认领（已成熟，推荐） |
-| ⑥ 发货 | TikTok 订单 API + 1688 采购/一件代发 API + 货代对接；当前用货叮咚采购派单人工闭环 |
-
-> ⚠️ **真·API 上架/自动采集/发货的授权（TikTok Shop Partner 审核、店铺 OAuth、1688 App Key）是资质活，需 kk 去申请**，代码框架已留好接口位。② 找货源已可零凭证半自动（生成 1688 搜索链接），App Key 只是「全自动搜+拉价」的升级。
-
-## 🔑 接口配置（填 API 凭证的地方）
-左侧「🔑 接口配置」页填三组凭证：**TikTok Shop Open API / 1688 开放平台 / 货代系统（达意 dyhd.huoyuanjiawms.com）**。
-- 真凭证写入 **`credentials.json`（已 gitignore，绝不入库）**；本仓库 PUBLIC，**严禁把密钥提交上来**。
-- 🔒 密钥类字段（app_secret/token）**不回显**，留空=不修改（防截图/共享泄露）。
-- 填好后，对应的需授权步骤（③⑥）会显示"凭证已就位、待接入实现"；真实 API 调用由后续版本把 `gated.py` 换成实现。（② 找货源已可零凭证半自动。）
-- 也可复制 `credentials.example.json` 为 `credentials.json` 手填。
-
-## 关于达意货代（本店所选货代）
-控制台已按达意真实数据对齐：**④定价**货代费默认 **2 元/单**（超规+1 元）；**⑥发货**步骤内置达意的**东莞/义乌仓地址、收费、营业时间(10:00–22:00)、赔付、发货流程**。达意档案详见 `../reference/04-履约发货/达意货代云仓-收费服务与发货流程.md`。
-
-## 目录结构（怎么加/改一步）
+## 目录
 ```
 automation/
-├── run.py            # 一键启动（校长用这个）
-├── server.py         # web 服务（stdlib http.server）
-├── config.json       # 硬指标/费率集中配置（网页可改写）
-├── credentials.example.json  # 接口凭证模板（真凭证存 credentials.json，已 gitignore）
-├── engine/
-│   ├── pipeline.py   # 流水线引擎：Step 基类 / StepResult / Pipeline(run_step, run_all)
-│   ├── creds.py      # 接口凭证读写（脱敏回显、secret 留空不改）
-│   └── xlsx.py       # 纯 stdlib 读 xlsx（解析出海匠导出，零依赖）
-├── steps/            # 每个环节一个步骤类
-│   ├── scoring.py    # ① 选品打分（真，上传出海匠 xlsx/csv → 市场信号打分 + 勾选联动）
-│   ├── source.py     # ② 找货源（真，① 勾选 → 生成 1688 搜索链接）
-│   ├── pricing.py    # ④ 定价利润（真，货代费默认对齐达意 2 元/单）
-│   ├── listing.py    # ⑤ 上架预检（真）
-│   ├── gated.py      # ③⑥ 需授权占位（返回 BLOCKED 暂停；⑥发货带达意仓/收费/赔付）
-│   └── __init__.py   # 组装 PIPELINE 顺序 + 读写 config
-├── web/index.html    # 单页控制台 + 🔑接口配置页（自包含，无 CDN）
-└── samples/candidates.csv  # 选品样例输入
+├── run.py            # 一键启动
+├── server.py         # 薄 HTTP 层：路由 + IO 粘合（不写业务逻辑）
+├── store.py          # workspace/ 唯一读写层（原子写 + schema 版本 + 品卡/任务操作）
+├── core/             # 纯函数（dict进dict出，不碰文件/网络/时间）
+│   ├── scoring.py    #   ① 选品打分（出海匠数据 → 结构化打分）
+│   ├── pricing.py    #   ④ 藏价/利润（货币口径马币 RM；含多货源对比、竞品价反算）
+│   ├── compliance.py #   ⑤ 标题公式 + 文本级合规（违禁词/禁售类目/品牌授权）
+│   ├── xlsx.py       #   xlsx 解析（纯正则，禁 xml.etree——expat 坑）
+│   └── creds.py      #   凭证管理（真凭证存 credentials.json，已 gitignore）
+├── engine/tasks/     # 引擎任务规范（sourcing.md 找货源 / listing.md 上架素材）
+├── web/              # 前端三件套（无构建）：index.html / styles.css(design tokens) / app.js
+├── tests/            # stdlib unittest（cd automation && python3 -m unittest discover -s tests）
+└── samples/          # 脱敏样例
 ```
-**加一步**：在 `steps/` 写个 `Step` 子类（定义 `id/name/stage/desc/requires/params/inputs_help` + `run()` 返回 `StepResult`），在 `steps/__init__.py` 的 `PIPELINE` 里排进顺序即可，网页自动出现。
-**把占位步骤变真**：把 `gated.py` 里对应类的 `available` 改 True、`run()` 换成调 API 的真实现。
 
-## 说明与边界
-- 本工具是**半自动化 + 人在环**：能自动的是计算（打分/定价/合规）；判断（选哪个、给多少折扣）和授权类动作仍由人拍板/执行。
-- 所有阈值/费率默认值都是**招商经验值 / 占位示例**，**以 TikTok 学习中心马来站当期为准**（尤其定价费率，别照抄默认）。
-- 数据只在**本地内存**处理，不外传、不落库；填真实数据产生的工作副本别提交 git（本仓库 PUBLIC）。
-- 知识依据见 `../sop/选品到上架-实操脚本.md` 与 `../reference/02/03/04`。
+## 开发规矩（详见 `../CONTRIBUTING.md` 第二部分）
+- **零依赖铁律**：后端纯 stdlib（禁 pip、禁 xml.etree）；前端无构建（禁 npm/框架/CDN）。
+- **分层**：core 纯函数 ← store 唯一碰 workspace ← server 只做路由 ← web 只做渲染。
+- **改完必测**：单测全绿 + `python3 run.py` 实测，记录写进 PR。
+- 换肤/界面精修：只改 `web/styles.css` 顶部的 design tokens。
 
-*v1：2026-07-05。下一步优先：把 ④定价 的费率对齐马来当期；评估 1688 App Key / TikTok Partner 申请。*
+## 当前进度
+M0（本目录骨架+协议+单测+CI）✅ → M1 品卡看板施工中。里程碑见 `../ROADMAP.md`。
+v1 六步向导已废弃（代码在 git 历史，提交 `01873f1` 及之前）。

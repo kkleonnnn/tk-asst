@@ -1,7 +1,7 @@
-# 协作指南：怎么喂料、怎么让它正式生效
+# 协作指南：知识怎么喂、代码怎么改
 
-> 给不写代码的伙伴：这个仓库就是一堆文本文件，**贡献 = 喂资料 + 提 PR，不需要写代码。**
-> 先读根目录 `README.md` 了解全局，再看这里的具体操作。
+> 本文两部分：**第一部分 知识贡献**（喂料/消化，不需要写代码）；**第二部分 代码贡献规范**（改驾驶舱 automation/ 的规矩，人和 AI 都要遵守）。
+> 先读根目录 `README.md` 了解全局；AI agent 另读 `AGENTS.md`。
 
 ## 一、喂料（任何人、任何工具都能做）
 
@@ -49,3 +49,25 @@ bash scripts/build_pack.sh   # 生成/更新 通用知识包.md
 | `inbox/` | 待消化的原始资料（大文件只留本地） |
 | 已消化的原件 | 本地留在各自批次目录（如 `inbox/2026-06-21/`），不入库；想清爽可 kk 整合后自行移入本地 `inbox/_已消化/`（可选、非强制） |
 | `reference/` | 已消化、已核实的正式知识（按 01–09 板块） |
+
+---
+
+# 第二部分 · 代码贡献规范（automation/ 驾驶舱）
+
+> 适用于所有改代码的人和 AI（Claude / Codex）。里程碑与验收见 `ROADMAP.md`；引擎协议见 `AGENTS.md`。
+
+## 一、架构硬约束（不容商量）
+
+1. **零依赖铁律**：后端**纯 Python 标准库**——禁 `pip install` 任何包；**禁用 `xml.etree`**（部分 Python 缺 pyexpat 会崩，解析 XML 用正则，见 `core/xlsx.py` 先例）。前端**无构建**——禁 npm/打包器/前端框架/CDN 外链，只有 `index.html + styles.css + app.js` 三个静态文件。
+2. **分层**：`core/` 只放**纯函数**（dict 进、dict 出，不碰文件/网络/时间）→ `store.py` 是唯一读写 `workspace/` 的地方（原子写：临时文件+改名）→ `server.py` 只做路由和 IO 粘合 → `web/` 只做渲染。
+3. **AI 不写进代码**：翻译/找货源/生成文案等智能活一律走引擎协议（`workspace/tasks.json` + `AGENTS.md`），代码里不内嵌任何模型调用。
+4. **数据**：`workspace/` 是唯一状态源；JSON 带 `schema_version`；改 schema = 升版本 + 更新 `workspace/schema/` + CHANGELOG 记一笔。真实经营数据永不入库。
+5. **前端规范**：`styles.css` 顶部集中定义 design tokens（颜色/间距/圆角/字号 CSS 变量），组件样式只引用 token；`app.js` 按组件函数组织。界面原则：每屏只留当前步骤必要元素。
+
+## 二、流程
+
+- **分支**：里程碑开分支（`m1-console` 等）→ PR → main。kk 可直推小修；**其他人/AI 一律 PR 且不自己合并**。
+- **完成定义（DoD）**：`cd automation && python3 -m unittest discover -s tests -v` 全绿 + 本地 `python3 run.py` 实测 + 实测记录写进 PR 描述 + 相关文档同步。
+- **CI**：GitHub Actions 自动跑 编译+单测（`.github/workflows/ci.yml`），PR 红了不合并。
+- **提交安全自查**：提交前 `git status` 确认没带入 `workspace/products.json`、`tasks.json`、`exports/`、`credentials.json`、`__pycache__`。
+- **风格**：中文注释与文档；snake_case；每个 `core/` 模块配最小 unittest。

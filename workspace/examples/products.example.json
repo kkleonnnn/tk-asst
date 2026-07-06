@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-07-06T12:00:00+08:00",
+  "products": [
+    {
+      "id": "p_0001",
+      "status": "priced",
+      "created_at": "2026-07-06T10:00:00+08:00",
+      "updated_at": "2026-07-06T12:00:00+08:00",
+      "source_data": {
+        "name": "Contoh Kotak Penyimpanan (示例收纳盒)",
+        "category": "家居收纳",
+        "price_low_myr": 12.9,
+        "price_high_myr": 15.9,
+        "sales_30d": 9800,
+        "sales_7d": 4200,
+        "rating": 4.8,
+        "reviews": 320,
+        "commission_pct": 8,
+        "tiktok_url": null
+      },
+      "scoring": { "score": 7, "verdict": "推荐", "trend": "↑上升", "flags": [] },
+      "sources": [
+        {
+          "id": "s1",
+          "url": "https://detail.1688.com/offer/000000000000.html",
+          "title": "示例货源A 收纳盒三件套",
+          "price_rmb": 8.5,
+          "weight_g": 220,
+          "moq": 2,
+          "ship_from": "广东东莞",
+          "supports_dropship": true,
+          "seller_rating": "4.8",
+          "notes": "示例数据，非真实货源",
+          "added_by": "claude",
+          "added_at": "2026-07-06T11:00:00+08:00"
+        }
+      ],
+      "chosen_source_id": "s1",
+      "pricing": {
+        "net_price_myr": 11.9,
+        "list_price_myr": 17.0,
+        "profit_myr": 2.38,
+        "profit_rate": 0.2,
+        "params_used": { "agent_fee_rmb": 2, "fx_rmb_per_myr": 1.55 }
+      },
+      "listing": {},
+      "export": {},
+      "publish": { "published_at": null, "tiktok_product_id": null },
+      "testing": { "listed_at": null, "notes": [] },
+      "log": [
+        { "at": "2026-07-06T10:00:00+08:00", "by": "console", "event": "导入并打分：7分 推荐" },
+        { "at": "2026-07-06T10:30:00+08:00", "by": "manual", "event": "人工勾选 → selected" },
+        { "at": "2026-07-06T11:00:00+08:00", "by": "claude", "event": "sourcing 任务 t_0001：写入 1 个候选货源" },
+        { "at": "2026-07-06T12:00:00+08:00", "by": "console", "event": "选定 s1，利润 RM2.38 → priced" }
+      ]
+    }
+  ]
+}

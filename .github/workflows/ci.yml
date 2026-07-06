@@ -1,0 +1,22 @@
+# 最小 CI：编译 + 单测（零依赖，分钟级）。PR 红了不合并 —— 见 CONTRIBUTING 代码规范章。
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.9", "3.13"]   # 3.9=本机系统版下限；3.13=新环境
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: 编译检查
+        run: python -m compileall -q automation
+      - name: 单元测试
+        run: cd automation && python -m unittest discover -s tests -v
