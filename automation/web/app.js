@@ -26,7 +26,7 @@ const PARAM_CN = {
   price_max_myr: "售价上限(RM)", trend_up_ratio: "上升趋势阈值",
 };
 
-const state = { products: [], tasks: [], filter: null, sel: new Set() };
+const state = { products: [], tasks: [], filter: null, sel: new Set(), expanded: null };
 
 function toast(msg, ms = 2600) {
   const t = $("#toast");
@@ -153,6 +153,11 @@ function renderTable() {
     const price = sd.price_low_myr != null
       ? (sd.price_high_myr != null && sd.price_high_myr !== sd.price_low_myr
         ? `${sd.price_low_myr}~${sd.price_high_myr}` : String(sd.price_low_myr)) : "—";
+    const nSrc = (p.sources || []).length;
+    const expandable = showSources && ["sourcing", "sourced", "priced", "listing_ready", "exported"].includes(p.status);
+    const srcCell = expandable
+      ? `<a href="javascript:void 0" class="srcbtn">${state.expanded === p.id ? "▾" : "▸"} ${nSrc ? nSrc + " 个" : "添加"}</a>`
+      : (nSrc ? `${nSrc} 个` : "—");
     const cells = [
       `<span title="${esc(p.id)}">${esc(String(sd.name || "").slice(0, 36))}</span>`,
       esc(sd.category || ""), esc(price),
@@ -160,14 +165,27 @@ function renderTable() {
       esc(sc.trend || "—"), sd.rating != null ? sd.rating : "—",
       `<span class="score">${sc.score != null ? sc.score : "—"}</span>`,
       `<span class="badge ${VERDICT_BADGE[sc.verdict] || ""}">${esc(sc.verdict || "—")}</span>`,
-      ...(showSources ? [(p.sources || []).length ? `${p.sources.length} 个` : "—"] : []),
+      ...(showSources ? [srcCell] : []),
       ...(state.filter === "all" ? [`<span class="badge accent">${STATUS_CN[p.status] || p.status}</span>`] : []),
     ];
     cells.forEach((c) => tr.appendChild(el("td", null, c)));
     const fl = el("td", "flags", esc((sc.flags || []).join("；") || "—"));
     fl.title = (sc.flags || []).join("\n");
     tr.appendChild(fl);
+    if (expandable) {
+      const btn = tr.querySelector(".srcbtn");
+      if (btn) btn.onclick = () => toggleExpand(p.id);
+    }
     tb.appendChild(tr);
+    if (state.expanded === p.id) {
+      const dtr = el("tr", "detailrow");
+      const td = el("td", "detailcell");
+      td.colSpan = head.children.length;
+      td.innerHTML = `<div class="muted">货源对比加载中…</div>`;
+      dtr.appendChild(td);
+      tb.appendChild(dtr);
+      loadDetail(p.id, td);
+    }
   });
   t.appendChild(tb);
   wrap.innerHTML = "";
@@ -200,6 +218,112 @@ function renderTasks() {
     }
     list.appendChild(row);
   });
+}
+
+/* ---------- 货源展开面板（M2：对比 → 补价重 → 选定） ---------- */
+function toggleExpand(pid) {
+  state.expanded = state.expanded === pid ? null : pid;
+  renderTable();
+}
+
+async function loadDetail(pid, td) {
+  const d = await api("/api/compare", { id: pid });
+  renderDetail(pid, td, d);
+}
+
+function fmtRM(v) { return v == null ? "—" : "RM" + Number(v).toFixed(2); }
+
+function renderDetail(pid, td, d) {
+  td.innerHTML = "";
+  const head = el("div", "row",
+    `<span class="muted">市场售价 ${d.market_price.low != null ? "RM" + d.market_price.low : "?"}` +
+    `${d.market_price.high != null && d.market_price.high !== d.market_price.low ? "~" + d.market_price.high : ""}</span>` +
+    `<span class="muted">｜费率为占位默认（佣金5%·手续2%·达人5%·利润20%·汇率1.55），以马来当期为准</span>`);
+  td.appendChild(head);
+
+  if ((d.sources || []).length) {
+    const t = el("table", "subtable");
+    t.innerHTML = `<thead><tr>
+      <th>货源</th><th>链接</th><th>进货价¥</th><th>重量g</th><th>起订</th><th>发货地</th>
+      <th>成本¥</th><th>折后价RM</th><th>利润RM</th><th>利润率</th><th></th></tr></thead>`;
+    const tb = el("tbody");
+    d.sources.forEach((s) => {
+      const tr = el("tr");
+      const chosen = d.chosen_source_id === s.id;
+      const pr = s.pricing || {};
+      tr.appendChild(el("td", "mono", esc(s.id) + (chosen ? ' <span class="badge ok">已选定</span>' : "")));
+      tr.appendChild(el("td", null,
+        `<a href="${esc(s.url)}" target="_blank">🔗 打开</a>` +
+        (s.title ? ` <span class="muted">${esc(String(s.title).slice(0, 22))}</span>` : "")));
+      // 进货价/重量可编辑（引擎常拿不到重量）
+      [["price_rmb", s.price_rmb], ["weight_g", s.weight_g]].forEach(([k, v]) => {
+        const cell = el("td");
+        const inp = el("input"); inp.type = "number"; inp.step = "any";
+        inp.value = v == null ? "" : v; inp.placeholder = "填"; inp.style.width = "72px";
+        inp.onchange = async () => {
+          await api("/api/sources/update", { id: pid, source_id: s.id, patch: { [k]: inp.value } });
+          await reload();   // 重算对比
+        };
+        cell.appendChild(inp); tr.appendChild(cell);
+      });
+      tr.appendChild(el("td", null, s.moq != null ? String(s.moq) : "—"));
+      tr.appendChild(el("td", null, esc(s.ship_from || "—")));
+      if (s.pricing_error) {
+        const e1 = el("td", null, "—");
+        const e2 = el("td", "muted", esc(s.pricing_error)); e2.colSpan = 3;
+        tr.appendChild(e1); tr.appendChild(e2);
+      } else {
+        tr.appendChild(el("td", null, pr.cost_rmb != null ? "¥" + pr.cost_rmb : "—"));
+        tr.appendChild(el("td", null, fmtRM(pr.net_price_myr)));
+        const profit = el("td", null,
+          `<b style="color:${pr.profit_myr > 0 ? "var(--ok)" : "var(--danger)"}">${fmtRM(pr.profit_myr)}</b>`);
+        tr.appendChild(profit);
+        tr.appendChild(el("td", null, pr.profit_rate != null ? Math.round(pr.profit_rate * 100) + "%" : "—"));
+      }
+      const act = el("td");
+      if (!chosen && !s.pricing_error) {
+        const b = el("button", "btn", "✓ 选定");
+        b.onclick = async () => {
+          const r = await api("/api/choose", { id: pid, source_id: s.id });
+          toast(`✅ 已选定 ${s.id}：折后 ${fmtRM(r.pricing.net_price_myr)}，利润 ${fmtRM(r.pricing.profit_myr)} → 已定价`);
+          state.filter = "priced"; location.hash = "priced";
+          await reload();
+        };
+        act.appendChild(b);
+      }
+      tr.appendChild(act);
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    td.appendChild(t);
+  } else {
+    td.appendChild(el("div", "muted",
+      d.status === "sourcing"
+        ? "引擎还没写回货源——等任务完成，或在下面手动添加你在 1688 找到的源。"
+        : "还没有货源，在下面手动添加。"));
+  }
+
+  // 手动加货源（三档里的手动档）
+  const form = el("div", "row srcform");
+  const inputs = {};
+  [["url", "1688 商品链接 *", 260], ["title", "货源名(可空)", 140],
+   ["price_rmb", "进货价¥ *", 90], ["weight_g", "重量g", 80], ["ship_from", "发货地", 100]]
+    .forEach(([k, ph, w]) => {
+      const inp = el("input");
+      inp.type = (k === "price_rmb" || k === "weight_g") ? "number" : "text";
+      inp.step = "any"; inp.placeholder = ph; inp.style.width = w + "px";
+      inputs[k] = inp; form.appendChild(inp);
+    });
+  const add = el("button", "btn", "＋ 添加货源");
+  add.onclick = async () => {
+    const src = {};
+    Object.entries(inputs).forEach(([k, inp]) => { if (inp.value !== "") src[k] = inp.value; });
+    await api("/api/sources/add", { id: pid, source: src });
+    toast("✅ 货源已添加");
+    await reload();
+  };
+  form.appendChild(add);
+  td.appendChild(form);
 }
 
 /* ---------- 动作 ---------- */
