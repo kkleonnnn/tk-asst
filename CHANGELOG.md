@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2-m3 引擎实跑验收（2026-07-08）—— 真实闭环打通
+- M2第2段 + M3 引擎用**真实数据**跑通：Claude 经浏览器 MCP 上 1688 实搜任务 t_0002 的 3 个品 → 抓真实货源(链接/进货价/发货地/包装重量) → 写回品卡 → 看板自动算利润对比(RM)。
+- 决策价值验证：玻璃瓶折后价 RM4.27 > 马来市场价 RM1.9 → 自动识别亏本、淘汰；清洁剂/收纳箱选定→定价。
+- M3：为 2 个选定品生成马来语标题/卖点/描述/SKU + 合规预检通过 → 导出素材包 zip（listing.csv/checklist/sources），可直接手动上架。未虚标 Halal、未盗用品牌。
+- 仅文档状态更新（ROADMAP M2/M3 → ✅）；代码在 v2-m1/m2a/m3。
+
 ## v2-m3（2026-07-08）—— 上架素材与一键导出（代码侧）
 - 品卡展开面板加「上架素材」区：展示 listing{}（马来语标题/卖点/描述/合规）；手动填素材表单（手动档，走 core.compliance 预检）→ listing_ready。
 - 一键导出素材包：`exports/<品卡>/`（listing.csv 带 BOM 兼容 Excel + checklist.txt 人工核对清单 + sources.txt 选定货源/图片）并打包 .zip → exported；IO 归 store.write_export（zipfile/csv 纯 stdlib）。
