@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2-m3（2026-07-08）—— 上架素材与一键导出（代码侧）
+- 品卡展开面板加「上架素材」区：展示 listing{}（马来语标题/卖点/描述/合规）；手动填素材表单（手动档，走 core.compliance 预检）→ listing_ready。
+- 一键导出素材包：`exports/<品卡>/`（listing.csv 带 BOM 兼容 Excel + checklist.txt 人工核对清单 + sources.txt 选定货源/图片）并打包 .zip → exported；IO 归 store.write_export（zipfile/csv 纯 stdlib）。
+- 「已定价」列批量「派发上架素材」任务（引擎按 engine/tasks/listing.md 生成马来语素材）。
+- +6 单测（共 51，3.9/3.13 双绿）。素材的 AI 生成本身由引擎实跑（M2第2段+M3引擎）。
+
 ## v2-m2a（2026-07-07）—— 看板货源侧（M2 第 1 段）
 - 品卡行展开货源面板：候选货源逐行**利润对比（RM，藏价自动算）**；进货价/重量可**内联补填**（引擎常拿不到重量）→ 即时重算。
 - **✓ 选定货源** → 定价写进品卡 → `priced`（可重选覆盖）；已选定徽标。

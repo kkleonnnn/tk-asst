@@ -108,6 +108,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, flows.choose_source(
                     store, body.get("id", ""), body.get("source_id", ""),
                     body.get("params")))
+            if self.path == "/api/listing/set":
+                return self._send(200, flows.set_listing(
+                    store, body.get("id", ""), body.get("listing") or {}))
+            if self.path == "/api/export":
+                return self._send(200, flows.export_product(store, body.get("id", "")))
         except (ValueError, KeyError) as e:
             return self._send(400, {"error": str(e)})
         return self._send(404, {"error": "not found"})

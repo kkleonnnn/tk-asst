@@ -111,6 +111,7 @@ function renderBulk() {
     acts.push(["↩ 退回已打分", () => bulkStatus("scored", "退回打分池")]);
   }
   if (f === "sourcing") acts.push(["↩ 退回已选定", () => bulkStatus("selected", "撤回找源")]);
+  if (f === "priced") acts.push(["→ 派发上架素材", dispatchListing]);
   acts.push(["🗑 淘汰", () => bulkStatus("dropped", "人工淘汰"), "danger"]);
   acts.forEach(([label, fn, cls]) => {
     const b = el("button", "btn " + (cls || ""), label);
@@ -126,7 +127,7 @@ function renderTable() {
     wrap.innerHTML = `<div class="empty">这里还没有品卡——点右上「⬆ 导入出海匠」开始</div>`;
     return;
   }
-  const showSources = ["sourcing", "sourced", "priced", "all"].includes(state.filter);
+  const showSources = ["sourcing", "sourced", "priced", "listing_ready", "exported", "all"].includes(state.filter);
   const t = el("table");
   const thead = el("thead");
   const head = el("tr");
@@ -324,6 +325,82 @@ function renderDetail(pid, td, d) {
   };
   form.appendChild(add);
   td.appendChild(form);
+
+  // 上架素材区（priced 之后才有意义）
+  if (["priced", "listing_ready", "exported", "published"].includes(d.status)) {
+    renderListingSection(pid, td);
+  }
+}
+
+/* 上架素材：展示 listing{} + 手动填 + 导出（素材 AI 生成走引擎 listing 任务） */
+function renderListingSection(pid, td) {
+  const card = state.products.find((p) => p.id === pid) || {};
+  const lst = card.listing || {};
+  const box = el("div", "listbox");
+  box.appendChild(el("div", "listhdr", "上架素材"));
+
+  if (lst.title_ms || lst.title_en) {
+    const comp = lst.compliance || {};
+    const kv = el("div", "kv");
+    const add = (k, v) => { kv.appendChild(el("div", "k", k)); kv.appendChild(el("div", null, v)); };
+    add("马来语标题", esc(lst.title_ms || "—"));
+    if (lst.title_en) add("英文标题", esc(lst.title_en));
+    if ((lst.selling_points_ms || []).length) add("卖点", esc(lst.selling_points_ms.join(" / ")));
+    if (lst.desc_ms) add("描述", esc(String(lst.desc_ms).slice(0, 120)) + (lst.desc_ms.length > 120 ? "…" : ""));
+    add("合规", comp.pass ? '<span class="badge ok">预检通过</span>'
+      : `<span class="badge warn">待修</span> <span class="muted">${esc((comp.issues || []).join("；"))}</span>`);
+    box.appendChild(kv);
+  } else {
+    box.appendChild(el("div", "muted",
+      "还没有素材——「派发上架素材」交引擎生成马来语标题/卖点/描述，或点下面手动填。"));
+  }
+
+  const row = el("div", "row srcform");
+  const expBtn = el("button", "btn primary", "📦 导出素材包");
+  expBtn.onclick = async () => {
+    const r = await api("/api/export", { id: pid });
+    toast(`📦 已导出：workspace/${r.zip}（listing.csv + 核对清单 + 货源）`, 5000);
+    await reload();
+  };
+  row.appendChild(expBtn);
+  const editBtn = el("button", "btn", lst.title_ms ? "✏️ 改素材" : "✏️ 手动填素材");
+  editBtn.onclick = () => toggleListingForm(pid, box, lst);
+  row.appendChild(editBtn);
+  if (card.export && card.export.path) {
+    row.appendChild(el("span", "muted", `已导出：workspace/${esc(card.export.path)}`));
+  }
+  box.appendChild(row);
+  td.appendChild(box);
+}
+
+function toggleListingForm(pid, box, lst) {
+  const old = box.querySelector(".listform");
+  if (old) { old.remove(); return; }
+  const form = el("div", "listform");
+  const fields = [["title_ms", "马来语标题", lst.title_ms || ""],
+    ["title_en", "英文标题(可空)", lst.title_en || ""],
+    ["selling_points_ms", "卖点(逗号分隔)", (lst.selling_points_ms || []).join(", ")],
+    ["desc_ms", "详情描述", lst.desc_ms || ""],
+    ["sku_names", "SKU(逗号分隔)", (lst.sku_names || []).join(", ")]];
+  const inputs = {};
+  fields.forEach(([k, ph, val]) => {
+    const wrap = el("div", "p");
+    wrap.appendChild(el("label", null, ph));
+    const inp = el(k === "desc_ms" ? "textarea" : "input");
+    inp.value = val; if (k !== "desc_ms") inp.type = "text";
+    inputs[k] = inp; wrap.appendChild(inp);
+    form.appendChild(wrap);
+  });
+  const save = el("button", "btn primary", "保存素材");
+  save.onclick = async () => {
+    const payload = {};
+    Object.entries(inputs).forEach(([k, inp]) => { if (inp.value !== "") payload[k] = inp.value; });
+    await api("/api/listing/set", { id: pid, listing: payload });
+    toast("✅ 素材已保存 → 素材就绪");
+    await reload();
+  };
+  form.appendChild(save);
+  box.appendChild(form);
 }
 
 /* ---------- 动作 ---------- */
@@ -334,6 +411,14 @@ async function bulkStatus(status, event) {
     (r.errors.length ? `；失败 ${r.errors.length}` : ""));
   state.sel.clear();
   if (status === "selected") { state.filter = "selected"; location.hash = "selected"; }
+  await reload();
+}
+
+async function dispatchListing() {
+  const ids = [...state.sel];
+  const r = await api("/api/dispatch", { type: "listing", ids });
+  toast(`🚀 ${r.hint}`, 6000);
+  state.sel.clear();
   await reload();
 }
 

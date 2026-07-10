@@ -138,6 +138,18 @@ td.detailcell { background: var(--surface); padding: var(--sp-4); white-space: n
 .srcform { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px dashed var(--line); }
 .srcform input { width: auto; }
 
+/* ---- 上架素材区 ---- */
+.listbox { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 2px solid var(--line); }
+.listhdr { font-size: var(--fs-sm); color: var(--muted); font-weight: 600; margin-bottom: var(--sp-2); }
+.listform { margin-top: var(--sp-3); display: grid; gap: var(--sp-2); max-width: 560px; }
+.listform .p label { font-size: var(--fs-xs); color: var(--muted); }
+.listform input, .listform textarea {
+  width: 100%; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 6px var(--sp-2); font-size: var(--fs-sm); font-family: var(--font);
+}
+.listform textarea { min-height: 60px; resize: vertical; }
+
 /* ---- 任务区 ---- */
 .task { display: flex; gap: var(--sp-3); align-items: center; padding: var(--sp-2) 0; border-bottom: 1px dashed var(--line); font-size: var(--fs-sm); flex-wrap: wrap; }
 .task:last-child { border-bottom: none; }

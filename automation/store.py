@@ -7,6 +7,7 @@
 import json
 import os
 import tempfile
+import zipfile
 from datetime import datetime
 
 SCHEMA_VERSION = 1
@@ -160,6 +161,23 @@ class Store:
                 self.save_tasks(data)
                 return t
         raise KeyError(f"任务不存在：{tid}")
+
+    # ---------- 素材包导出（store owns exports_dir 的 IO） ----------
+    def write_export(self, folder_name, files):
+        """把 {文件名: 文本内容} 写进 exports/<folder_name>/，再打包同名 .zip。
+        .csv 用 utf-8-sig（Excel/WPS 打开中文马来文不乱码）。返回 (folder_rel, zip_rel)。"""
+        folder = os.path.join(self.exports_dir, folder_name)
+        os.makedirs(folder, exist_ok=True)
+        for fn, content in files.items():
+            enc = "utf-8-sig" if fn.lower().endswith(".csv") else "utf-8"
+            with open(os.path.join(folder, fn), "w", encoding=enc) as f:
+                f.write(content)
+        zip_path = folder + ".zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+            for fn in files:
+                z.write(os.path.join(folder, fn), arcname=os.path.join(folder_name, fn))
+        rel = lambda p: os.path.relpath(p, self.root)  # noqa: E731
+        return rel(folder), rel(zip_path)
 
     # ---------- 看板汇总 ----------
     def summary(self):
