@@ -433,6 +433,12 @@ async function dispatchSourcing() {
 
 /* ---------- 导入 ---------- */
 async function setupImport() {
+  $("#btnPublishList").onclick = async () => {
+    const r = await api("/api/publish-list");
+    const warn = r.non_guangdong && r.non_guangdong.length
+      ? `；⚠️ ${r.non_guangdong.length} 个非广东货源(清单里已标🚩)` : "";
+    toast(`📋 发布清单已导出 ${r.count} 个品 → workspace/${r.zip}${warn}`, 6000);
+  };
   $("#btnImport").onclick = () => { $("#importPanel").style.display = ""; };
   $("#btnCancelImport").onclick = () => { $("#importPanel").style.display = "none"; };
   $("#paramsToggle").onclick = () => $("#paramsDrawer").classList.toggle("open");

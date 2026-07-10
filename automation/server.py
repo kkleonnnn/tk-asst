@@ -72,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, store.load_tasks())
             if self.path == "/api/scoring-params":
                 return self._send(200, scoring.DEFAULTS)
+            if self.path == "/api/publish-list":
+                return self._send(200, flows.publish_list(store))
         except ValueError as e:  # schema 版本不符等
             return self._send(500, {"error": str(e)})
         return self._send(404, {"error": "not found"})
