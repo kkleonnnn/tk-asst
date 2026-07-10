@@ -94,6 +94,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, flows.dispatch_task(
                     store, body.get("type", ""), body.get("ids") or [],
                     body.get("params")))
+            if self.path == "/api/compare":
+                return self._send(200, flows.compare_sources(
+                    store, body.get("id", ""), body.get("params")))
+            if self.path == "/api/sources/add":
+                return self._send(200, flows.add_source(
+                    store, body.get("id", ""), body.get("source") or {}))
+            if self.path == "/api/sources/update":
+                return self._send(200, flows.update_source(
+                    store, body.get("id", ""), body.get("source_id", ""),
+                    body.get("patch") or {}))
+            if self.path == "/api/choose":
+                return self._send(200, flows.choose_source(
+                    store, body.get("id", ""), body.get("source_id", ""),
+                    body.get("params")))
         except (ValueError, KeyError) as e:
             return self._send(400, {"error": str(e)})
         return self._send(404, {"error": "not found"})
