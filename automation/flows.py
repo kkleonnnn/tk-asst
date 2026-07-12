@@ -318,3 +318,73 @@ def export_product(store, pid, by="console"):
     store.update_product(pid, {"export": {"path": zip_rel, "exported_at": now()}, "status": "exported"},
                          by=by, event=f"导出素材包 {zip_rel}")
     return {"folder": folder_rel, "zip": zip_rel, "files": ["listing.csv", "checklist.txt", "sources.txt"]}
+
+
+# ==================== 发布清单（Option A：喂链接给货叮咚采集发布） ====================
+
+# 广东省内判定（达意东莞仓头程最短；只做广东货源）
+_GD = ("广东", "东莞", "广州", "深圳", "佛山", "中山", "惠州", "珠海", "汕头",
+       "江门", "肇庆", "湛江", "茂名", "揭阳", "清远", "潮州", "梅州", "汕尾",
+       "河源", "阳江", "云浮", "韶关")
+
+
+def _is_guangdong(ship_from):
+    s = ship_from or ""
+    return any(g in s for g in _GD)
+
+
+def publish_list(store):
+    """汇出「货叮咚发布清单」：所有待发布品(priced/listing_ready/exported)的
+    广东1688链接+建议定价+重量+类目，供运营在货叮咚按 Option A 采集→翻译→发布。
+    自动标出非广东货源(违反广东规则)。"""
+    data = store.load_products()
+    ready = [c for c in data["products"]
+             if c.get("status") in ("priced", "listing_ready", "exported")]
+    if not ready:
+        return {"error": "还没有待发布的品——先把品走到「已定价」(选定货源)再来。"}
+
+    def esc(v):
+        return '"' + str(v if v is not None else "").replace('"', '""') + '"'
+
+    header = ["商品名", "1688货源链接(广东)", "进货价¥", "重量g", "建议折后价RM",
+              "单件利润RM", "类目", "马来语标题(如已生成)", "货源地", "广东?"]
+    lines = [",".join(esc(h) for h in header)]
+    non_gd = []
+    for c in ready:
+        sd = c.get("source_data") or {}
+        pr = c.get("pricing") or {}
+        lst = c.get("listing") or {}
+        src = next((s for s in (c.get("sources") or [])
+                    if s.get("id") == c.get("chosen_source_id")), None) or {}
+        gd = _is_guangdong(src.get("ship_from"))
+        if not gd:
+            non_gd.append(sd.get("name", c["id"]))
+        lines.append(",".join(esc(x) for x in [
+            sd.get("name", ""), src.get("url", ""), src.get("price_rmb", ""),
+            src.get("weight_g", ""), pr.get("net_price_myr", ""), pr.get("profit_myr", ""),
+            sd.get("category", ""), lst.get("title_ms", ""),
+            src.get("ship_from", ""), "是" if gd else "🚩否(违规,建议重找广东源)"]))
+    csv = "\n".join(lines) + "\n"
+
+    steps = [
+        f"# 货叮咚发布清单（Option A：喂链接给货叮咚采集）  共 {len(ready)} 个待发布品",
+        f"生成于 {now()}", "",
+        "对清单里每个品，在货叮咚（huodingdong.com）里这样做：",
+        "1. 产品 → 采集选品/采集箱 → 用「1688货源链接」采集该货源（自动带标题/图/SKU/进货价）。",
+        "2. 认领 → 套「定价模板」（参考本清单『建议折后价RM/利润RM』；费率以马来站当期为准）。",
+        "3. 一键翻译 → 马来语（标题/描述/SKU）。已有『马来语标题』的可直接用/参考。",
+        "4. 产品图片 → 图片翻译/智能抠图/智能消除：去掉中文/水印/联系方式/品牌Logo（≥5张，800×800）。",
+        "5. 物流信息 → 填『重量g』(见清单)、包裹尺寸。",
+        "6. 类目选对（选错会被下架）。",
+        "7. 保存草稿 → 人工核对无误 → 再点「保存并发布」（这一步务必人点，别让脚本代点）。",
+        "",
+        "⚠️ 『广东?』列标 🚩 的：货源发货地不在广东，违反广东货源规则(达意东莞仓头程最短)——建议回选品重找广东源再发。",
+    ]
+    if non_gd:
+        steps.append(f"   本次非广东货源：{', '.join(non_gd)}")
+    steps_txt = "\n".join(steps) + "\n"
+
+    folder_rel, zip_rel = store.write_export(
+        "货叮咚发布清单", {"发布清单.csv": csv, "操作步骤.txt": steps_txt})
+    return {"count": len(ready), "non_guangdong": non_gd,
+            "folder": folder_rel, "zip": zip_rel}
