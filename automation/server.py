@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import flows  # noqa: E402
@@ -74,6 +75,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, scoring.DEFAULTS)
             if self.path == "/api/publish-list":
                 return self._send(200, flows.publish_list(store))
+            parsed = urlparse(self.path)
+            if parsed.path == "/api/publish-recipe":
+                pid = (parse_qs(parsed.query).get("id") or [""])[0]
+                return self._send(200, flows.publish_recipe(store, pid))
         except ValueError as e:  # schema 版本不符等
             return self._send(500, {"error": str(e)})
         return self._send(404, {"error": "not found"})
@@ -115,6 +120,10 @@ class Handler(BaseHTTPRequestHandler):
                     store, body.get("id", ""), body.get("listing") or {}))
             if self.path == "/api/export":
                 return self._send(200, flows.export_product(store, body.get("id", "")))
+            if self.path == "/api/sku-translate":
+                from core import listing_ms
+                return self._send(200, {"skus": listing_ms.translate_sku_names_ms(
+                    body.get("names") or [])})
         except (ValueError, KeyError) as e:
             return self._send(400, {"error": str(e)})
         return self._send(404, {"error": "not found"})
